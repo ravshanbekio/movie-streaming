@@ -20,15 +20,15 @@ async def get_all_users(role: str = None, page: int = 1, limit: int = 25, \
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     filters = []
-    if role is not None:
+    if role:
         filters.append(User.role == role)
-
+    
     filter_query = and_(*filters) if filters else None
     return await get_all(db=db, model=User, filter_query=filter_query, page=page, limit=limit)
 
-@user_router.get("/users/{user_id}", summary="Foydalanuvchi haqida ma'lumot olish")
-async def get_user(user_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> UserResponse:
-    return await get_one(db=db, model=User, filter_query=(User.id==user_id))
+# @user_router.get("/users/{phone_number}", summary="Foydalanuvchi haqida ma'lumot olish")
+# async def get_user(phone_number: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> UserResponse:
+#     return await get_one(db=db, model=User, filter_query=(User.phone_number==phone_number))
 
 @user_router.post("/users/create", summary="Foydalanuvchi yaratish")
 async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> UserCreateForm:
@@ -78,4 +78,4 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db), current_
         return CustomResponse(status_code=400, detail="Bunday foydalanuvchi mavjud emas")
     
     await remove(db=db, model=User, filter_query=(User.id==user_id))
-    return DeletedResponse()
+    return DeletedResp
