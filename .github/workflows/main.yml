@@ -1,0 +1,29 @@
+name: Deploy to Remote Server
+
+on:
+  push:
+    branches:
+      - main  # or your default branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 161.97.113.186 >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh root@161.97.113.186 '
+            cd /root/projects/MovieStreaming &&
+            git pull origin main &&
+            sudo systemctl restart MovieAPI
+          '
