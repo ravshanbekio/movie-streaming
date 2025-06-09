@@ -31,4 +31,5 @@ class Content(Base):
     created_at = Column(DateTime)
 
     # Relationships
+    genre_data = relationship("Genre", primaryjoin="Content.genre==Genre.genre_id", back_populates="content")
     playlist = relationship("Playlist", primaryjoin="Content.playlist_id==Playlist.playlist_id", back_populates="contents")
