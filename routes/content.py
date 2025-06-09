@@ -57,8 +57,8 @@ async def create_content(
         form['thumbnail'] = save_thumbnail['path']
 
     if content_url:
-        save_content = await save_content(UPLOAD_DIR, content_url)
-        form['content_url'] = save_content['path']
+        save_media = await save_content(UPLOAD_DIR, content_url)
+        form['content_url'] = save_media['path']
 
     await create(db=db, model=Content, form=form)
     return CreatedResponse()
