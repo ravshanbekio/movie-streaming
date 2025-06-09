@@ -11,9 +11,11 @@ from models.content import Content
 from schemas.content import ContentResponse
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
+from utils.compressor import save_image
 
 content_router = APIRouter(tags=["Content"])
 
+UPLOAD_DIR = "thumbnails"
 MIN_DATE = date(1970, 1, 1)
 
 @content_router.post("/content/create_movie")
@@ -49,6 +51,10 @@ async def create_content(
         "content_url":content_url,
         "created_at":datetime.now()
     }
+
+    if thumbnail:
+        save_thumbnail = await save_image(UPLOAD_DIR, thumbnail)
+        form['thumbnail'] = save_thumbnail['path']
 
     await create(db=db, model=Content, form=form)
     return CreatedResponse()
