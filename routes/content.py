@@ -11,7 +11,7 @@ from models.content import Content
 from schemas.content import ContentResponse
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
-from utils.compressor import save_image
+from utils.compressor import save_image, save_content
 
 content_router = APIRouter(tags=["Content"])
 
@@ -55,6 +55,10 @@ async def create_content(
     if thumbnail:
         save_thumbnail = await save_image(UPLOAD_DIR, thumbnail)
         form['thumbnail'] = save_thumbnail['path']
+
+    if content_url:
+        save_content = await save_content(UPLOAD_DIR, content_url)
+        form['content_url'] = save_content['path']
 
     await create(db=db, model=Content, form=form)
     return CreatedResponse()
