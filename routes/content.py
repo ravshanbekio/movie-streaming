@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Form, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 
 from database import get_db
@@ -15,14 +15,15 @@ from utils.compressor import save_image, save_content
 
 content_router = APIRouter(tags=["Content"])
 
-UPLOAD_DIR = "thumbnails"
+THUMBNAIL_UPLOAD_DIR = "thumbnails"
+CONTENT_UPLOAD_DIR = "contents"
 MIN_DATE = date(1970, 1, 1)
 
 @content_router.post("/content/create_movie")
 async def create_content(
     title: str = Form(description="Sarlavha", repr=False),
     description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
-    genre: Optional[int] = Form(None, description="Janr", repr=False),
+    genre: Optional[List[int]] = Form(None, description="Janr", repr=False),
     release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
     dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
     thumbnail: UploadFile = File(description="Rasm", repr=False),
@@ -32,11 +33,13 @@ async def create_content(
     if current_user.role != "admin":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
+    genre_ids = []
     if genre:
-        get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre))
+        get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
         if not get_genre:
             return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
-    
+        genre_ids.append(genre)
+
     if release_date:
         if release_date < MIN_DATE:
             return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
@@ -44,7 +47,7 @@ async def create_content(
     form = {
         "title":title,
         "description":description,
-        "genre":genre,
+        "genre_ids":genre_ids,
         "release_date":release_date,
         "dubbed_by":dubbed_by,
         "thumbnail":thumbnail,
@@ -53,11 +56,11 @@ async def create_content(
     }
 
     if thumbnail:
-        save_thumbnail = await save_image(UPLOAD_DIR, thumbnail)
+        save_thumbnail = await save_image(THUMBNAIL_UPLOAD_DIR, thumbnail)
         form['thumbnail'] = save_thumbnail['path']
 
     if content_url:
-        save_media = await save_content(UPLOAD_DIR, content_url)
+        save_media = await save_content(CONTENT_UPLOAD_DIR, content_url)
         form['content_url'] = save_media['path']
 
     await create(db=db, model=Content, form=form)
