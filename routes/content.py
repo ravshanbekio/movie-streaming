@@ -23,7 +23,7 @@ MIN_DATE = date(1970, 1, 1)
 async def create_content(
     title: str = Form(description="Sarlavha", repr=False),
     description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
-    genre: Optional[List[int]] = Form(None, description="Janr", repr=False),
+    genre: Optional[int] = Form(None, description="Janr", repr=False),
     release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
     dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
     thumbnail: UploadFile = File(description="Rasm", repr=False),
@@ -34,10 +34,9 @@ async def create_content(
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     if genre:
-        for genre_id in genre:
-            get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre_id))
-            if not get_genre:
-                return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
+        get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre))
+        if not get_genre:
+            return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
 
     if release_date:
         if release_date < MIN_DATE:
@@ -46,8 +45,8 @@ async def create_content(
     form = {
         "title":title,
         "description":description,
-        "genre_data":genre,
         "release_date":release_date,
+        "genre":genre,
         "dubbed_by":dubbed_by,
         "thumbnail":thumbnail,
         "content_url":content_url,
@@ -63,5 +62,6 @@ async def create_content(
         form['content_url'] = save_media['path']
 
     await create(db=db, model=Content, form=form)
+    await db.commit()
     return CreatedResponse()
 

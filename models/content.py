@@ -28,6 +28,7 @@ class Content(Base):
     content_id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255))
     description = Column(Text, nullable=True)
+    genre = Column(Integer, ForeignKey("genres.genre_id"), nullable=True)
     quality = Column(String(10), nullable=True)
     release_date = Column(Date, nullable=True)
     dubbed_by = Column(String(255), nullable=True)

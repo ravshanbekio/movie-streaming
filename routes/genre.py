@@ -21,6 +21,10 @@ async def create_genre(form: GenreCreateForm, db: AsyncSession = Depends(get_db)
     if current_user.role != "admin":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
+    get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.title==form.title))
+    if get_genre:
+        return CustomResponse(status_code=400, detail="Bunday janr mavjud")
+    
     await create(db=db, model=Genre, form=form.model_dump())
     return CreatedResponse()
 
