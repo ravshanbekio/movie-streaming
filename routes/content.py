@@ -46,7 +46,7 @@ async def create_content(
     form = {
         "title":title,
         "description":description,
-        "genre_ids":genre,
+        "genre_data":genre,
         "release_date":release_date,
         "dubbed_by":dubbed_by,
         "thumbnail":thumbnail,
