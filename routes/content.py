@@ -64,4 +64,3 @@ async def create_content(
     await create(db=db, model=Content, form=form)
     await db.commit()
     return CreatedResponse()
-
