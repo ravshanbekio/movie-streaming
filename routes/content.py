@@ -33,12 +33,10 @@ async def create_content(
     if current_user.role != "admin":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
-    genre_ids = []
     if genre:
         get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
         if not get_genre:
             return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
-        genre_ids.append(genre)
 
     if release_date:
         if release_date < MIN_DATE:
