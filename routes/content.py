@@ -34,9 +34,10 @@ async def create_content(
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     if genre:
-        get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
-        if not get_genre:
-            return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
+        for genre_id in genre:
+            get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre_id))
+            if not get_genre:
+                return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
 
     if release_date:
         if release_date < MIN_DATE:
