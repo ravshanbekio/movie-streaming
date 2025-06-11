@@ -30,14 +30,18 @@ async def get_all(db: AsyncSession, model, filter_query: tuple = None, options =
 async def get_one(db: AsyncSession, model, filter_query, options = None):
     query = select(model).where(filter_query)
     if options is not None:
-        query = query.options(options)
+        query = query.options(*options)
 
     result = await db.execute(query)
-    return result.scalar_one_or_none()
+    return result.unique().scalar_one_or_none()
     
-async def create(db: AsyncSession, model, form: dict):
+async def create(db: AsyncSession, model, form: dict, id: bool = False):
     query = insert(model).values(form)
-    await db.execute(query)
+    query_execute = await db.execute(query)
+    if id:
+        await db.commit()
+        return query_execute.inserted_primary_key[0]
+    
     await db.commit()
 
 async def change(db: AsyncSession, model, filter_query, form: dict):

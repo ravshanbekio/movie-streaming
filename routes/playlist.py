@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Form, UploadFile, File
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
@@ -6,9 +7,9 @@ from database import get_db
 from crud import get_all, get_one, create, change, remove
 from models.user import User
 from models.content import Content
-from models.content import Playlist
+from models.playlist import Playlist
 from schemas.content import ContentResponse
-from schemas.playlist import PlaylistResponse
+from schemas.playlist import PlaylistResponse, PlaylistDetailResponse
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
 from utils.compressor import save_image
@@ -23,8 +24,8 @@ async def get_playlists(page: int = 1, limit: int = 25, db: AsyncSession = Depen
     return await get_all(db=db, model=Playlist, page=page, limit=limit)
 
 @playlist_router.get("/playlists/all/content")
-async def get_playlist_contents(playlist_id: int, page: int = 1, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
-    return await get_all(db=db, model=Content, filter_query=(Content.playlist_id==playlist_id), page=page, limit=limit)
+async def get_playlist_contents(playlist_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> PlaylistDetailResponse:
+    return await get_one(db=db, model=Playlist, filter_query=(Playlist.playlist_id==playlist_id), options=[joinedload(Playlist.contents)])
 
 @playlist_router.post("/playlists/create")
 async def create_playlist(
@@ -52,8 +53,7 @@ async def create_playlist(
         save_thumbnail = await save_image(PLAYLIST_UPLOAD_DIR, thumbnail)
         form["thumbnail"] = save_thumbnail['path']
      
-    await create(db=db, model=Playlist, form=form)
-    return CreatedResponse()
+    return await create(db=db, model=Playlist, form=form, id=True)
 
 @playlist_router.put("/playlists/update")
 async def update_playlist(
