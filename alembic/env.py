@@ -22,7 +22,8 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from models.user import User
 from models.genre import Genre
-from models.content import Playlist, Content
+from models.content import Content
+from models.playlist import Playlist
 
 target_metadata = Base.metadata
 
