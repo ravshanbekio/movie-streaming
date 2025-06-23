@@ -6,7 +6,7 @@ from database import get_db
 from utils.auth import get_current_active_user
 from models.user import User
 from models.genre import Genre
-from schemas.genre import GenreResponse, GenreCreateForm, GenreUpdateForm
+from admin.schemas.genre import GenreResponse, GenreCreateForm, GenreUpdateForm
 from utils.exceptions import CreatedResponse, UpdatedResponse, CustomResponse, DeletedResponse
 from utils.pagination import Page
 

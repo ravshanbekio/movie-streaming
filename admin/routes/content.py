@@ -1,0 +1,193 @@
+from fastapi import APIRouter, Depends, Form, UploadFile, File, BackgroundTasks
+from sqlalchemy.orm import joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
+from datetime import datetime, date
+
+from database import get_db
+from crud import get_all, get_one, create, change, remove
+from models.user import User
+from models.genre import Genre
+from models.episode import Episode
+from models.content import Content
+from admin.schemas.content import ContentResponse
+from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
+from utils.auth import get_current_active_user
+from utils.compressor import save_image
+from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
+from utils.tasks import verify_upload_background
+from utils.pagination import Page
+
+content_router = APIRouter(tags=["Content"], prefix="/contents")
+
+THUMBNAIL_UPLOAD_DIR = "thumbnails"
+CONTENT_UPLOAD_DIR = "contents"
+MIN_DATE = date(1970, 1, 1)
+
+content_uploadfile = None
+trailer = None
+
+@content_router.get("/all")
+async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
+    return await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=(joinedload(Content.episodes)), page=page, limit=limit)
+
+@content_router.post("/generate_upload_url")
+def generate_upload_url(content: UploadFile = File(description="Content"), trailer: UploadFile = File(None, description="Trailer")):
+    content_object_key = f"contents/raw/{content.filename}"
+    trailer_object_key = f"trailers/raw/{trailer.filename}" if trailer else None
+
+    trailer_presigned_url = None
+
+    content_presigned_url = r2.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": R2_BUCKET,
+            "Key": content_object_key,
+            "ContentType": content.content_type
+        },
+        ExpiresIn=3600  # 1 hour
+    )
+
+    if trailer:
+        trailer_presigned_url = r2.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": R2_BUCKET,
+                "Key": trailer_object_key,
+                "ContentType": trailer.content_type
+            },
+            ExpiresIn=600  # 10 minutes
+        )
+
+    return {
+        # Content 
+        "content_upload_url": content_presigned_url,
+        "content_object_key": content_object_key,
+        "content_public_url": f"{R2_PUBLIC_ENDPOINT}/{content_object_key}",
+        # Trailer
+        "trailer_upload_url": trailer_presigned_url,
+        "trailer_object_key": trailer_object_key if trailer else None,
+        "trailer_public_url": f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None
+    }
+
+@content_router.post("/create_content")
+async def create_content(
+    background_task: BackgroundTasks,
+    title: str = Form(description="Sarlavha", repr=False),
+    description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
+    genre: Optional[int] = Form(None, description="Janr", repr=False),
+    release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
+    dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
+    status: str = Form(description="Status", repr=False),
+    subscription_status: bool = Form(description="Obunalik kontent", repr=False),
+    thumbnail: UploadFile = File(description="Rasm", repr=False),
+    content_object_key: str = Form(description="Content Object KEY", repr=False),
+    trailer_object_key: Optional[str] = Form(None, description="Trailer Object KEY", repr=False),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+    ):
+    if current_user.role != "admin":
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+    
+    if genre:
+        get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre))
+        if not get_genre:
+            return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
+
+    if release_date:
+        if release_date < MIN_DATE:
+            return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
+
+    content_public_url = f"{R2_PUBLIC_ENDPOINT}/{content_object_key}"
+    trailer_public_url = f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None
+    form = {
+        "uploader_id":current_user.id,
+        "title":title,
+        "description":description,
+        "release_date":release_date,
+        "genre":genre,
+        "dubbed_by":dubbed_by,
+        "status":status,
+        "subscription_status":subscription_status,
+        "thumbnail":thumbnail,
+        "content_url":content_public_url,
+        "trailer_url":trailer_public_url,
+        "created_at":datetime.now()
+    }
+
+    if thumbnail:
+        save_thumbnail = await save_image(THUMBNAIL_UPLOAD_DIR, thumbnail)
+        form['thumbnail'] = save_thumbnail['path']
+
+    created_content = await create(db=db, model=Content, form=form, id=True)
+    background_task.add_task(
+        verify_upload_background,
+        db=db,
+        model=Content,
+        filter_query=(Content.content_id==created_content),
+        content_object_key=content_object_key,
+        trailer_object_key=trailer_object_key)
+
+    return CreatedResponse()
+
+
+@content_router.put("/update_content")
+async def update_content(
+    id: int = Form(description="Content ID", repr=False),
+    title: Optional[str] = Form(None, description="Sarlavha", repr=False),
+    description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
+    genre: Optional[int] = Form(None, description="Janr", repr=False),
+    release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
+    dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
+    status: Optional[str] = Form(None, description="Status", repr=False),
+    subscription_status: Optional[bool] = Form(None, description="Obunalik kontent", repr=False),
+    thumbnail: Optional[UploadFile] = File(None, description="Rasm", repr=False),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)):
+    get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==id))
+    if not get_content:
+        return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
+    
+    if current_user.role != "admin" and get_content.uploader_id != current_user.id:
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+    
+    if genre:
+        get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre))
+        if not get_genre:
+            return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
+
+    if release_date:
+        if release_date < MIN_DATE:
+            return CustomResponse(status_code=400, detail="Sana 1900-yildan past bo'lmasligi kerak")
+
+    form = {}
+    if title:
+        form["title"] = title
+    if description:
+        form["description"] = description
+    if genre:
+        form["genre"] = genre
+    if release_date:
+        form["release_date"] = release_date
+    if dubbed_by:
+        form["dubbed_by"] = dubbed_by
+    if status:
+        form["status"] = status
+    if thumbnail:
+        save_thumbnail = await save_image(THUMBNAIL_UPLOAD_DIR, thumbnail)
+        form['thumbnail'] = save_thumbnail['path'] 
+
+    await change(db=db, model=Content, filter_query=(Content.content_id==id), form=form)
+    return UpdatedResponse()
+
+@content_router.delete("/delete_content")
+async def delete_content(id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==id))
+    if not get_content:
+        return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
+    
+    if current_user.role != "admin" and get_content.uploader_id != current_user.id:
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+    
+    await remove(db=db, model=Content, filter_query=(Content.content_id==id))
+    return DeletedResponse()
