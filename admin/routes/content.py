@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, Form, UploadFile, File, BackgroundTasks
-from sqlalchemy.orm import joinedload
+from fastapi.responses import ORJSONResponse
+from sqlalchemy import and_
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from datetime import datetime, date
@@ -13,23 +15,30 @@ from models.content import Content
 from admin.schemas.content import ContentResponse
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
-from utils.compressor import save_image
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
+from utils.compressor import upload_thumbnail_to_r2
 from utils.tasks import verify_upload_background
 from utils.pagination import Page
 
 content_router = APIRouter(tags=["Content"], prefix="/contents")
-
-THUMBNAIL_UPLOAD_DIR = "thumbnails"
-CONTENT_UPLOAD_DIR = "contents"
 MIN_DATE = date(1970, 1, 1)
-
-content_uploadfile = None
-trailer = None
 
 @content_router.get("/all")
 async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
-    return await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=(joinedload(Content.episodes)), page=page, limit=limit)
+    data = await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=[selectinload(Content.episodes)], page=page, limit=limit)
+    seasions = []
+    for content in data['data']:
+        content.seasions = list(set(ep.seasion for ep in content.episodes))
+        del content.episodes
+
+    result = [ContentResponse.model_validate(content).model_dump() for content in data["data"]]
+
+    return ORJSONResponse({
+        "total_pages": data["total_pages"],
+        "current_page": data["current_page"],
+        "limit": data["limit"],
+        "data": result
+    })
 
 @content_router.post("/generate_upload_url")
 def generate_upload_url(content: UploadFile = File(description="Content"), trailer: UploadFile = File(None, description="Trailer")):
@@ -109,15 +118,15 @@ async def create_content(
         "dubbed_by":dubbed_by,
         "status":status,
         "subscription_status":subscription_status,
-        "thumbnail":thumbnail,
+        "thumbnail":None,
         "content_url":content_public_url,
         "trailer_url":trailer_public_url,
         "created_at":datetime.now()
     }
 
     if thumbnail:
-        save_thumbnail = await save_image(THUMBNAIL_UPLOAD_DIR, thumbnail)
-        form['thumbnail'] = save_thumbnail['path']
+        save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
+        form["thumbnail"] = save_thumbnail
 
     created_content = await create(db=db, model=Content, form=form, id=True)
     background_task.add_task(
@@ -174,8 +183,8 @@ async def update_content(
     if status:
         form["status"] = status
     if thumbnail:
-        save_thumbnail = await save_image(THUMBNAIL_UPLOAD_DIR, thumbnail)
-        form['thumbnail'] = save_thumbnail['path'] 
+        save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
+        form['thumbnail'] = save_thumbnail
 
     await change(db=db, model=Content, filter_query=(Content.content_id==id), form=form)
     return UpdatedResponse()

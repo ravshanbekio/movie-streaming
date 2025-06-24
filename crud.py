@@ -5,7 +5,7 @@ from database import get_db
 from utils.pagination import paginate
 
 
-async def get_all(db: AsyncSession, model, filter_query: tuple = None, options = None, page: int = 1, limit: int = 20):
+async def get_all(db: AsyncSession, model, filter_query: tuple = None, options: list = None, page: int = 1, limit: int = 20, unique: bool = False):
     offset = (page - 1) * limit
 
     # Count total rows
@@ -23,7 +23,10 @@ async def get_all(db: AsyncSession, model, filter_query: tuple = None, options =
         query = query.options(*options)
 
     result = await db.execute(query)
-    data = result.scalars().all()
+    if unique:
+        data = result.unique().scalars().all()
+    else:
+        data = result.scalars().all()
 
     return await paginate(data=data, total=total, page=page, limit=limit)
 
@@ -35,11 +38,14 @@ async def get_one(db: AsyncSession, model, filter_query, options = None):
     result = await db.execute(query)
     return result.unique().scalar_one_or_none()
     
-async def create(db: AsyncSession, model, form: dict, id: bool = False):
+async def create(db: AsyncSession, model, form: dict, id: bool = False, flush: bool = False):
     query = insert(model).values(form)
     query_execute = await db.execute(query)
     if id:
         await db.commit()
+        return query_execute.inserted_primary_key[0]
+    if flush:
+        await db.flush()
         return query_execute.inserted_primary_key[0]
     
     await db.commit()

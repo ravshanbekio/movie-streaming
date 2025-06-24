@@ -17,4 +17,4 @@ class Episode(Base):
     created_at = Column(DateTime)
 
     # Relationships
-    content = relationship("Content", primaryjoin="Content.content_id==Episode.content_id", back_populates="episodes")
+    content = relationship("Content", primaryjoin="Episode.content_id==Content.content_id", back_populates="episodes")

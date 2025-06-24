@@ -15,7 +15,10 @@ class ContentResponse(BaseModel):
     subscription_status: bool
     thumbnail: str
 
-    episodes: List[EpisodeSeasionResponse]
+    seasions: Optional[List[str]] = []
+
+    class Config:
+        from_attributes = True
 
 class ContentGenreResponse(ContentResponse):
     genre_data: GenreResponse
