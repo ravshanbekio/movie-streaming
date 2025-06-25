@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 
 from database import Base
-#from .content import movie_genre_association
+from .content import movie_genre_association
 
 class Genre(Base):
     __tablename__ = "genres"
@@ -11,4 +11,4 @@ class Genre(Base):
     title = Column(String(255))
     created_at = Column(DateTime)
 
-    #content = relationship("Content", secondary=movie_genre_association, back_populates="genre_data")
+    content = relationship("Content", secondary=movie_genre_association, back_populates="genre_data")

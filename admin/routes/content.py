@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Form, UploadFile, File, BackgroundTasks
 from fastapi.responses import ORJSONResponse
 from sqlalchemy import and_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 
 from database import get_db
@@ -11,8 +11,8 @@ from crud import get_all, get_one, create, change, remove
 from models.user import User
 from models.genre import Genre
 from models.episode import Episode
-from models.content import Content
-from admin.schemas.content import ContentResponse
+from models.content import Content, movie_genre_association
+from admin.schemas.content import ContentResponse, ContentDetailResponse
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
@@ -25,7 +25,7 @@ MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
 async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
-    data = await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=[selectinload(Content.episodes)], page=page, limit=limit)
+    data = await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data), selectinload(Content.episodes)], page=page, limit=limit)
     seasions = []
     for content in data['data']:
         content.seasions = list(set(ep.seasion for ep in content.episodes))
@@ -39,6 +39,10 @@ async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = De
         "limit": data["limit"],
         "data": result
     })
+
+@content_router.get("/one")
+async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> ContentDetailResponse:
+    return await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
 
 @content_router.post("/generate_upload_url")
 def generate_upload_url(content: UploadFile = File(description="Content"), trailer: UploadFile = File(None, description="Trailer")):
@@ -84,7 +88,7 @@ async def create_content(
     background_task: BackgroundTasks,
     title: str = Form(description="Sarlavha", repr=False),
     description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
-    genre: Optional[int] = Form(None, description="Janr", repr=False),
+    genre: List[int] = Form(None, description="Janr", repr=False),
     release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
     dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
     status: str = Form(description="Status", repr=False),
@@ -98,23 +102,21 @@ async def create_content(
     if current_user.role != "admin":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
-    if genre:
-        get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre))
-        if not get_genre:
-            return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
+    get_genre = await get_all(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
+    if len(get_genre['data']) != len(genre):
+        return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
 
     if release_date:
         if release_date < MIN_DATE:
             return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
 
     content_public_url = f"{R2_PUBLIC_ENDPOINT}/{content_object_key}"
-    trailer_public_url = f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None
+    trailer_public_url = f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer_object_key else None
     form = {
         "uploader_id":current_user.id,
         "title":title,
         "description":description,
         "release_date":release_date,
-        "genre":genre,
         "dubbed_by":dubbed_by,
         "status":status,
         "subscription_status":subscription_status,
@@ -129,6 +131,10 @@ async def create_content(
         form["thumbnail"] = save_thumbnail
 
     created_content = await create(db=db, model=Content, form=form, id=True)
+
+    for genre in get_genre['data']:
+        await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
+
     background_task.add_task(
         verify_upload_background,
         db=db,
@@ -145,7 +151,7 @@ async def update_content(
     id: int = Form(description="Content ID", repr=False),
     title: Optional[str] = Form(None, description="Sarlavha", repr=False),
     description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
-    genre: Optional[int] = Form(None, description="Janr", repr=False),
+    genre: Optional[List[int]] = Form(None, description="Janr", repr=False),
     release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
     dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
     status: Optional[str] = Form(None, description="Status", repr=False),
@@ -161,9 +167,10 @@ async def update_content(
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     if genre:
-        get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre))
-        if not get_genre:
+        get_genre = await get_all(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
+        if len(get_genre['data']) != len(genre):
             return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
+
 
     if release_date:
         if release_date < MIN_DATE:
@@ -175,7 +182,10 @@ async def update_content(
     if description:
         form["description"] = description
     if genre:
-        form["genre"] = genre
+        await remove(db=db, model=movie_genre_association, filter_query=and_(movie_genre_association.c.content_id==id))
+        for genre_id in get_genre['data']:
+            await create(db=db, model=movie_genre_association, form={"content_id":id, "genre_id":genre_id.genre_id})
+
     if release_date:
         form["release_date"] = release_date
     if dubbed_by:
