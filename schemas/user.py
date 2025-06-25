@@ -30,4 +30,5 @@ class UserUpdateForm(BaseModel):
     first_name: Optional[str]
     last_name: Optional[str]
     phone_number: Optional[str]
+    role: Optional[str]
     password: Optional[str]

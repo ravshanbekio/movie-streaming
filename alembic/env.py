@@ -23,7 +23,7 @@ if config.config_file_name is not None:
 from models.user import User
 from models.genre import Genre
 from models.content import Content
-from models.playlist import Playlist
+from models.episode import Episode
 
 target_metadata = Base.metadata
 

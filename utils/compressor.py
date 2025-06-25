@@ -1,56 +1,26 @@
 import uuid
-from fastapi import HTTPException, UploadFile
-from pathlib import Path
+from fastapi import UploadFile
+from io import BytesIO
 
-MAX_IMAGE_SIZE = 5242880
-MAX_CONTENT_SIZE = 2621440000
+from .r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
 
-async def save_image(folder: str, file: UploadFile):
-    UPLOAD_DIR = Path(f"static/{folder}")
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+async def upload_thumbnail_to_r2(thumbnail: UploadFile) -> str:
+    # Create unique object key
+    extension = thumbnail.filename.split(".")[-1]
+    object_key = f"thumbnails/{uuid.uuid4().hex}.{extension}"
 
-    filename = f"{uuid.uuid4()}_{file.filename}"
+    # Read file content
+    data = await thumbnail.read()
 
-    file_path = UPLOAD_DIR / filename
+    image_stream = BytesIO(data)
 
-    if file and file.content_type not in ['image/png', 'image/jpg', 'image/jpeg', 'image/svg', 'images/webp']:
-        raise HTTPException(
-            status_code=400,
-            detail="Banner uchun quydagi formatlarga ruxsat berilgan: *.png, .*jpg, *.jpeg, *.svg, *.webp"
-        )
-    
-    if file.size > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=400, detail="Banner uchun rasm 5MB dan oshmasligi kerak")
+    # Upload to R2
+    r2.put_object(
+        Bucket=R2_BUCKET,
+        Key=object_key,
+        Body=image_stream,
+        ContentType=thumbnail.content_type or "image/jpeg"
+    )
 
-    # Save the file
-    with open(file_path, "wb") as buffer:
-        content = await file.read()
-        buffer.write(content)
-
-    return {"filename": filename, "path": str(file_path)}
-
-
-async def save_content(folder: str, file: UploadFile):
-    UPLOAD_DIR = Path(f"static/{folder}")
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-    filename = f"{uuid.uuid4()}_{file.filename}"
-
-    file_path = UPLOAD_DIR / filename
-
-    if file and file.content_type not in ['video/mp4', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'video/mpeg',
-                                          'video/3gpp']:
-        raise HTTPException(
-            status_code=400,
-            detail="Media fayl uchun quydagi formatlarga ruxsat berilgan: *.mp4, .*avi, *.mkv, *.webm, *.mpeg, *.3gpp"
-        )
-    
-    if file.size > MAX_CONTENT_SIZE:
-        raise HTTPException(status_code=400, detail="Media fayl uchun rasm 2.5GB dan oshmasligi kerak")
-
-    # Save the file
-    with open(file_path, "wb") as buffer:
-        content = await file.read()
-        buffer.write(content)
-
-    return {"filename": filename, "path": str(file_path)}
+    # Return public URL
+    return f"{R2_PUBLIC_ENDPOINT}/{object_key}"
