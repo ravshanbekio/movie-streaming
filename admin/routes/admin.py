@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import ORJSONResponse
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
@@ -58,7 +59,7 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         "refresh_token":access_token
     }
     await create(db=db, model=User, form=data)
-    return CreatedResponse(detail=f"{access_token}")
+    return ORJSONResponse(status_code=201, content={"token":access_token})
 
 @admin_router.put("/admin/update", summary="Admin ma'lumotlarini o'zgartirish")
 async def update_user(form: UserUpdateForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
