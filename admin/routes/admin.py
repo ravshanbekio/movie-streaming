@@ -37,7 +37,7 @@ async def get_current_user_data(current_user: User = Depends(get_current_active_
 #     return await get_one(db=db, model=User, filter_query=(User.phone_number==phone_number))
 
 @admin_router.post("/admin/create", summary="Admin yaratish")
-async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> UserCreateForm:
+async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) -> UserCreateForm:
     get_user = await get_one(db=db, model=User, filter_query=(User.phone_number==form.phone_number))
     if get_user:
         return CustomResponse(status_code=400, detail="Ushbu telefon raqam mavjud")
