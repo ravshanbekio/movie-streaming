@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from crud import get_all, get_one, create, change, remove
 from database import get_db
@@ -9,6 +9,7 @@ from models.user import User
 from schemas.user import UserAuthForm, UserResponse, UserCreateForm, UserUpdateForm
 from utils.auth import get_password_hash, get_current_active_user
 from utils.exceptions import CreatedResponse, UpdatedResponse, CustomResponse, DeletedResponse
+from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from utils.pagination import Page
 
 admin_router = APIRouter(tags=["Admin"])
@@ -44,14 +45,20 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         return CustomResponse(status_code=400, detail="Parol 6ta belgidan kam bo'lmasligi kerak")
     
     form.password = get_password_hash(form.password)
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": form.phone_number}, expires_delta=access_token_expires
+    )
     data = {
         "phone_number":form.phone_number,
         "password": form.password,
         "role": form.role,
-        "joined_at":datetime.now()
+        "joined_at":datetime.now(),
+        "refresh_token":access_token
     }
     await create(db=db, model=User, form=data)
-    return CreatedResponse()
+    return CreatedResponse(detail=f"{access_token}")
 
 @admin_router.put("/admin/update", summary="Admin ma'lumotlarini o'zgartirish")
 async def update_user(form: UserUpdateForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
