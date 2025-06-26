@@ -58,7 +58,7 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         "refresh_token":access_token
     }
     await create(db=db, model=User, form=data)
-    return CreatedResponse(detail=f"token: {access_token}")
+    return CreatedResponse(detail=f"{access_token}")
 
 @admin_router.put("/admin/update", summary="Admin ma'lumotlarini o'zgartirish")
 async def update_user(form: UserUpdateForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
