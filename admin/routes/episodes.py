@@ -26,8 +26,25 @@ async def get_all_episodes(content_id: int, seasion: str, page: int = 1, limit: 
     
     return await get_all(db=db, model=Episode, filter_query=and_(Episode.content_id==content_id, Episode.seasion==seasion.lower()))
 
-@episode_router.post("/generate_upload_url")
-def generate_upload_url(episode_video: UploadFile = File(description="Episode")):
+
+@episode_router.post("/create_episode")
+async def create_new_episode(
+    background_task: BackgroundTasks,
+    seasion: str = Form(description="Seasion", repr=False),
+    content_id: int = Form(description="Content ID", repr=False),
+    episode: str = Form(description="Episode", repr=False),
+    episode_video: UploadFile = File(description="Episode", repr=False),
+    episode_thumbnail: UploadFile = Form(description="Episode thumbnail"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    if current_user.role != "admin":
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar mavjud emas")
+    
+    get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id))
+    if not get_content:
+        return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
+
     episode_object_key = f"episodes/raw/{episode_video.filename}"
 
     episode_presigned_url = r2.generate_presigned_url(
@@ -40,38 +57,11 @@ def generate_upload_url(episode_video: UploadFile = File(description="Episode"))
         ExpiresIn=3600  # 1 hour
     )
 
-    return {
-        # Episode 
-        "episode_upload_url": episode_presigned_url,
-        "episode_object_key": episode_object_key,
-        "episode_public_url": f"{R2_PUBLIC_ENDPOINT}/{episode_object_key}",
-    }
-
-
-@episode_router.post("/create_episode")
-async def create_new_episode(
-    background_task: BackgroundTasks,
-    seasion: str = Form(description="Seasion", repr=False),
-    content_id: int = Form(description="Content ID", repr=False),
-    episode: str = Form(description="Episode", repr=False),
-    episode_object_key: str = Form(description="Episode object KEY", repr=False),
-    episode_thumbnail: UploadFile = Form(description="Episode thumbnail"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    if current_user.role != "admin":
-        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar mavjud emas")
-    
-    get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id))
-    if not get_content:
-        return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
-    
-    episode_public_url = f"{R2_PUBLIC_ENDPOINT}/{episode_object_key}"
     form = {
         "content_id":content_id,
         "seasion":seasion,
         "episode":episode.lower(),
-        "episode_video":episode_public_url,
+        "episode_video":f"{R2_PUBLIC_ENDPOINT}/{episode_object_key}",
         "episode_thumbnail":episode_thumbnail
     }
 
@@ -87,7 +77,12 @@ async def create_new_episode(
         filter_query=(Episode.id==created_episode),
         content_object_key=episode_object_key
         )
-    return CreatedResponse()
+    
+    return {
+        "episode_upload_url": episode_presigned_url,
+        "episode_object_key": episode_object_key,
+        "episode_public_url": f"{R2_PUBLIC_ENDPOINT}/{episode_object_key}"
+    }
 
 @episode_router.delete("/delete_episode")
 async def delete_episode(episode_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
