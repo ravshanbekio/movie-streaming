@@ -42,7 +42,11 @@ async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = De
 
 @content_router.get("/one")
 async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> ContentDetailResponse:
-    return await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
+    data = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
+    if not data:
+        return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
+
+    return data
 
 @content_router.post("/create_content")
 async def create_content(
