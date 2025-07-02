@@ -25,7 +25,7 @@ MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
 async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
-    data = await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data), selectinload(Content.episodes)], page=page, limit=limit)
+    data = await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
     seasions = []
     for content in data['data']:
         content.seasions = list(set(ep.seasion for ep in content.episodes))
@@ -44,8 +44,33 @@ async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = De
 async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> ContentDetailResponse:
     return await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
 
-@content_router.post("/generate_upload_url")
-def generate_upload_url(content: UploadFile = File(description="Content"), trailer: UploadFile = File(None, description="Trailer")):
+@content_router.post("/create_content")
+async def create_content(
+    background_task: BackgroundTasks,
+    title: str = Form(description="Sarlavha", repr=False),
+    description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
+    genre: List[int] = Form(None, description="Janr", repr=False),
+    release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
+    dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
+    status: str = Form(description="Status", repr=False),
+    subscription_status: bool = Form(description="Obunalik kontent", repr=False),
+    thumbnail: UploadFile = File(description="Rasm", repr=False),
+    content: UploadFile = File(description="Content", repr=False),
+    trailer: Optional[UploadFile] = File(None, description="Trailer Object KEY", repr=False),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+    ):
+    if current_user.role != "admin":
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+    
+    get_genre = await get_all(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
+    if len(get_genre['data']) != len(genre):
+        return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
+
+    if release_date:
+        if release_date < MIN_DATE:
+            return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
+        
     content_object_key = f"contents/raw/{content.filename}"
     trailer_object_key = f"trailers/raw/{trailer.filename}" if trailer else None
 
@@ -72,46 +97,6 @@ def generate_upload_url(content: UploadFile = File(description="Content"), trail
             ExpiresIn=600  # 10 minutes
         )
 
-    return {
-        # Content 
-        "content_upload_url": content_presigned_url,
-        "content_object_key": content_object_key,
-        "content_public_url": f"{R2_PUBLIC_ENDPOINT}/{content_object_key}",
-        # Trailer
-        "trailer_upload_url": trailer_presigned_url,
-        "trailer_object_key": trailer_object_key if trailer else None,
-        "trailer_public_url": f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None
-    }
-
-@content_router.post("/create_content")
-async def create_content(
-    background_task: BackgroundTasks,
-    title: str = Form(description="Sarlavha", repr=False),
-    description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
-    genre: List[int] = Form(None, description="Janr", repr=False),
-    release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
-    dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
-    status: str = Form(description="Status", repr=False),
-    subscription_status: bool = Form(description="Obunalik kontent", repr=False),
-    thumbnail: UploadFile = File(description="Rasm", repr=False),
-    content_object_key: str = Form(description="Content Object KEY", repr=False),
-    trailer_object_key: Optional[str] = Form(None, description="Trailer Object KEY", repr=False),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-    ):
-    if current_user.role != "admin":
-        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
-    
-    get_genre = await get_all(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
-    if len(get_genre['data']) != len(genre):
-        return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
-
-    if release_date:
-        if release_date < MIN_DATE:
-            return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
-
-    content_public_url = f"{R2_PUBLIC_ENDPOINT}/{content_object_key}"
-    trailer_public_url = f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer_object_key else None
     form = {
         "uploader_id":current_user.id,
         "title":title,
@@ -121,8 +106,8 @@ async def create_content(
         "status":status,
         "subscription_status":subscription_status,
         "thumbnail":None,
-        "content_url":content_public_url,
-        "trailer_url":trailer_public_url,
+        "content_url":f"{R2_PUBLIC_ENDPOINT}/{content_object_key}",
+        "trailer_url":f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None,
         "created_at":datetime.now()
     }
 
@@ -143,7 +128,16 @@ async def create_content(
         content_object_key=content_object_key,
         trailer_object_key=trailer_object_key)
 
-    return CreatedResponse()
+    return {
+        # Content 
+        "content_upload_url": content_presigned_url,
+        "content_object_key": content_object_key,
+        "content_public_url": f"{R2_PUBLIC_ENDPOINT}/{content_object_key}",
+        # Trailer
+        "trailer_upload_url": trailer_presigned_url,
+        "trailer_object_key": trailer_object_key if trailer else None,
+        "trailer_public_url": f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None
+    }
 
 
 @content_router.put("/update_content")
