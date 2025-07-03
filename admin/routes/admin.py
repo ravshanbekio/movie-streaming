@@ -18,7 +18,7 @@ admin_router = APIRouter(tags=["Admin"])
 @admin_router.get("/admin/all", summary="Barcha adminlarni olish")
 async def get_all_users(role: str = None, page: int = 1, limit: int = 25, \
                         db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[UserResponse]:
-    if current_user.role != "admin":
+    if current_user.role != "admin" or current_user.role != "owner":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     filters = []
@@ -86,6 +86,9 @@ async def update_user(form: UserUpdateForm, db: AsyncSession = Depends(get_db), 
 
 @admin_router.delete("/admin/delete", summary="Adminni o'chirish")
 async def delete_user(user_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    if current_user.role != "admin" or current_user.role != "owner":
+        raise CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+    
     get_user = await get_one(db=db, model=User, filter_query=(User.id==user_id))
     if not get_user:
         return CustomResponse(status_code=400, detail="Bunday admin mavjud emas")

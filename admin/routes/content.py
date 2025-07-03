@@ -25,6 +25,9 @@ MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
 async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
+    if current_user.role != "admin" or current_user.role != "owner":
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+
     data = await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
     seasions = []
     for content in data['data']:
@@ -42,11 +45,10 @@ async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = De
 
 @content_router.get("/one")
 async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> ContentDetailResponse:
-    data = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
-    if not data:
-        return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
-
-    return data
+    if current_user.role != "admin" or current_user.role != "owner":
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+    
+    return await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
 
 @content_router.post("/create_content")
 async def create_content(
@@ -63,7 +65,7 @@ async def create_content(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
     ):
-    if current_user.role != "admin":
+    if current_user.role != "admin" or current_user.role != "owner":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     get_genre = await get_all(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
@@ -133,7 +135,11 @@ async def update_content(
     subscription_status: Optional[bool] = Form(None, description="Obunalik kontent", repr=False),
     thumbnail: Optional[UploadFile] = File(None, description="Rasm", repr=False),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)):
+    current_user: User = Depends(get_current_active_user)
+    ):
+    if current_user.role != "admin" or current_user.role != "owner":
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+
     get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==id))
     if not get_content:
         return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
@@ -176,6 +182,9 @@ async def update_content(
 
 @content_router.delete("/delete_content")
 async def delete_content(id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    if current_user.role != "admin" or current_user.role != "owner":
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+    
     get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==id))
     if not get_content:
         return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
