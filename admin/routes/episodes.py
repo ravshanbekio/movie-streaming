@@ -25,7 +25,6 @@ async def get_all_episodes(content_id: int, seasion: str, page: int = 1, limit: 
     
     return await get_all(db=db, model=Episode, filter_query=and_(Episode.content_id==content_id, Episode.seasion==seasion.lower()))
 
-
 @episode_router.post("/create_episode")
 async def create_new_episode(
     background_task: BackgroundTasks,

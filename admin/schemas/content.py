@@ -34,4 +34,5 @@ class ContentDetailResponse(BaseModel):
     genre_data: List[GenreResponse]
 
     class Config:
+        orm_mode = True
         from_attributes = True
