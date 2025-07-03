@@ -8,6 +8,7 @@ from crud import get_all, get_one, create, change, remove
 from database import get_db
 from models.user import User
 from schemas.user import UserAuthForm, UserResponse, UserCreateForm, UserUpdateForm
+from admin.schemas.user import AdminRole
 from utils.auth import get_password_hash, get_current_active_user
 from utils.exceptions import CreatedResponse, UpdatedResponse, CustomResponse, DeletedResponse
 from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
