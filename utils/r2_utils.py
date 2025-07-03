@@ -17,15 +17,3 @@ r2 = boto3.client(
     region_name="auto",
     config=Config(signature_version="s3v4")
 )
-
-def check_file_exists_in_r2(content_object_key: str, trailer_object_key: str = None) -> bool:
-    try:
-        r2.head_object(Bucket=R2_BUCKET, Key=content_object_key)
-        if trailer_object_key:
-            try:
-                r2.head_object(Bucket=R2_BUCKET, Key=trailer_object_key)
-            except Exception:
-                return False
-        return True
-    except Exception:
-        return False
