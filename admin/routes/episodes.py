@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Form, UploadFile, File, BackgroundTasks
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from botocore.exceptions import BotoCoreError, ClientError
 
 from database import get_db
 from crud import get_all, get_one, create, change, remove
@@ -13,8 +14,6 @@ from utils.exceptions import CreatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
 from utils.compressor import upload_thumbnail_to_r2
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
-from utils.tasks import verify_upload_background
-from utils.pagination import Page, paginate
 
 episode_router = APIRouter(tags=["Episodes"], prefix="/episodes")
 THUMBNAIL_UPLOAD_DIR = "episodes"
@@ -45,44 +44,32 @@ async def create_new_episode(
     if not get_content:
         return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
 
-    episode_object_key = f"episodes/raw/{episode_video.filename}"
+    try:
+        #Cloudga yuklash
+        r2.upload_fileobj(
+            Fileobj=episode_video.file,
+            Bucket=R2_BUCKET,
+            Key=f"episodes/{episode_video.filename}",
+            ExtraArgs={'ContentType': episode_video.content_type}
+        )
 
-    episode_presigned_url = r2.generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": R2_BUCKET,
-            "Key": episode_object_key,
-            "ContentType": episode_video.content_type
-        },
-        ExpiresIn=3600  # 1 hour
-    )
-
-    form = {
+        form = {
         "content_id":content_id,
         "seasion":seasion,
         "episode":episode.lower(),
-        "episode_video":f"{R2_PUBLIC_ENDPOINT}/{episode_object_key}",
+        "episode_video":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/episodes/{episode_video.filename}",
         "episode_thumbnail":episode_thumbnail
-    }
+        }
 
-    if episode_thumbnail:
-        save_thumbnail = await upload_thumbnail_to_r2(episode_thumbnail)
-        form["episode_thumbnail"] = save_thumbnail
+        if episode_thumbnail:
+            save_thumbnail = await upload_thumbnail_to_r2(episode_thumbnail)
+            form["episode_thumbnail"] = save_thumbnail
 
-    created_episode = await create(db=db, model=Episode, form=form, id=True)
-    background_task.add_task(
-        verify_upload_background,
-        db=db,
-        model=Episode,
-        filter_query=(Episode.id==created_episode),
-        content_object_key=episode_object_key
-        )
-    
-    return {
-        "episode_upload_url": episode_presigned_url,
-        "episode_object_key": episode_object_key,
-        "episode_public_url": f"{R2_PUBLIC_ENDPOINT}/{episode_object_key}"
-    }
+        await create(db=db, model=Episode, form=form)
+        return CreatedResponse()
+
+    except (BotoCoreError, ClientError) as e:
+        return CustomResponse(status_code=400, detail=str(e))
 
 @episode_router.delete("/delete_episode")
 async def delete_episode(episode_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
