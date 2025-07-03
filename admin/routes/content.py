@@ -5,19 +5,19 @@ from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from datetime import datetime, date
+from botocore.exceptions import BotoCoreError, ClientError
+
 
 from database import get_db
 from crud import get_all, get_one, create, change, remove
 from models.user import User
 from models.genre import Genre
-from models.episode import Episode
 from models.content import Content, movie_genre_association
 from admin.schemas.content import ContentResponse, ContentDetailResponse
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
 from utils.compressor import upload_thumbnail_to_r2
-from utils.tasks import verify_upload_background
 from utils.pagination import Page
 
 content_router = APIRouter(tags=["Content"], prefix="/contents")
@@ -46,7 +46,6 @@ async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_u
 
 @content_router.post("/create_content")
 async def create_content(
-    background_task: BackgroundTasks,
     title: str = Form(description="Sarlavha", repr=False),
     description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
     genre: List[int] = Form(None, description="Janr", repr=False),
@@ -71,73 +70,51 @@ async def create_content(
         if release_date < MIN_DATE:
             return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
         
-    content_object_key = f"contents/raw/{content.filename}"
-    trailer_object_key = f"trailers/raw/{trailer.filename}" if trailer else None
-
-    trailer_presigned_url = None
-
-    content_presigned_url = r2.generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": R2_BUCKET,
-            "Key": content_object_key,
-            "ContentType": content.content_type
-        },
-        ExpiresIn=3600  # 1 hour
-    )
-
-    if trailer:
-        trailer_presigned_url = r2.generate_presigned_url(
-            "put_object",
-            Params={
-                "Bucket": R2_BUCKET,
-                "Key": trailer_object_key,
-                "ContentType": trailer.content_type
-            },
-            ExpiresIn=600  # 10 minutes
+    try:
+        # Cloudga animeni yuklash
+        r2.upload_fileobj(
+            Fileobj=content.file,
+            Bucket=R2_BUCKET,
+            Key=f"contents/{content.filename}",
+            ExtraArgs={'ContentType': content.content_type}
         )
 
-    form = {
-        "uploader_id":current_user.id,
-        "title":title,
-        "description":description,
-        "release_date":release_date,
-        "dubbed_by":dubbed_by,
-        "status":status,
-        "subscription_status":subscription_status,
-        "thumbnail":None,
-        "content_url":f"{R2_PUBLIC_ENDPOINT}/{content_object_key}",
-        "trailer_url":f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None,
-        "created_at":datetime.now()
-    }
+        # Cloudga trailerni yuklash (agar bor bo'lsa)
+        if trailer:
+            r2.upload_fileobj(
+            Fileobj=trailer.file,
+            Bucket=R2_BUCKET,
+            Key=f"trailers/{trailer.filename}",
+            ExtraArgs={'ContentType': trailer.content_type}
+        )
+    
+        form = {
+            "uploader_id":current_user.id,
+            "title":title,
+            "description":description,
+            "release_date":release_date,
+            "dubbed_by":dubbed_by,
+            "status":status,
+            "subscription_status":subscription_status,
+            "thumbnail":None,
+            "content_url":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/contents/{content.filename}",
+            "trailer_url":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/trailers/{trailer.filename}" if trailer else None,
+            "created_at":datetime.now()
+        }
 
-    if thumbnail:
-        save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
-        form["thumbnail"] = save_thumbnail
+        if thumbnail:
+            save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
+            form["thumbnail"] = save_thumbnail
 
-    created_content = await create(db=db, model=Content, form=form, id=True)
+        created_content = await create(db=db, model=Content, form=form, id=True)
 
-    for genre in get_genre['data']:
-        await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
+        for genre in get_genre['data']:
+            await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
 
-    background_task.add_task(
-        verify_upload_background,
-        db=db,
-        model=Content,
-        filter_query=(Content.content_id==created_content),
-        content_object_key=content_object_key,
-        trailer_object_key=trailer_object_key)
-
-    return {
-        # Content 
-        "content_upload_url": content_presigned_url,
-        "content_object_key": content_object_key,
-        "content_public_url": f"{R2_PUBLIC_ENDPOINT}/{content_object_key}",
-        # Trailer
-        "trailer_upload_url": trailer_presigned_url,
-        "trailer_object_key": trailer_object_key if trailer else None,
-        "trailer_public_url": f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None
-    }
+        return CreatedResponse()
+    
+    except (BotoCoreError, ClientError) as e:
+        return CustomResponse(status_code=400, detail=str(e))
 
 
 @content_router.put("/update_content")
