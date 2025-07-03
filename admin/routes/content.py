@@ -14,6 +14,7 @@ from models.user import User
 from models.genre import Genre
 from models.content import Content, movie_genre_association
 from admin.schemas.content import ContentResponse, ContentDetailResponse
+from admin.schemas.user import AdminRole
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
@@ -25,7 +26,7 @@ MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
 async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
-    if current_user.role != "admin" or current_user.role != "owner":
+    if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
 
     data = await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
