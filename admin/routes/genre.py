@@ -18,7 +18,7 @@ async def get_all_genres(page: int = 1, limit: int = 25, db: AsyncSession = Depe
 
 @genre_router.post("/genres/create")
 async def create_genre(form: GenreCreateForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    if current_user.role != "admin":
+    if current_user.role != "admin" or current_user.role != "owner":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.title==form.title))
@@ -30,7 +30,7 @@ async def create_genre(form: GenreCreateForm, db: AsyncSession = Depends(get_db)
 
 @genre_router.put("/genres/update")
 async def update_genre(form: GenreUpdateForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    if current_user.role != "admin":
+    if current_user.role != "admin" or current_user.role != "owner":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==form.genre_id))
@@ -46,7 +46,7 @@ async def update_genre(form: GenreUpdateForm, db: AsyncSession = Depends(get_db)
 
 @genre_router.delete("/genres/delete")
 async def delete_genre(genre_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    if current_user.role != "admin":
+    if current_user.role != "admin" or current_user.role != "owner":
         return CustomResponse(status_code=400, detail="Sizday yetarli huquqlar yo'q")
     
     get_genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre_id))

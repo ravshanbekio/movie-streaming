@@ -20,7 +20,7 @@ THUMBNAIL_UPLOAD_DIR = "episodes"
 
 @episode_router.get("/all")
 async def get_all_episodes(content_id: int, seasion: str, page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    if current_user.role != "admin":
+    if current_user.role != "admin" or current_user.role != "owner":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar mavjud emas")
     
     return await get_all(db=db, model=Episode, filter_query=and_(Episode.content_id==content_id, Episode.seasion==seasion.lower()))
@@ -37,7 +37,7 @@ async def create_new_episode(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    if current_user.role != "admin":
+    if current_user.role != "admin" or current_user.role != "owner":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar mavjud emas")
     
     get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id))
@@ -73,7 +73,7 @@ async def create_new_episode(
 
 @episode_router.delete("/delete_episode")
 async def delete_episode(episode_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    if current_user.role not in AdminRole:
+    if current_user.role != "admin" or current_user.role != "owner":
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar mavjud emas")
 
     get_episode = await get_one(db=db, model=Episode, filter_query=(Episode.id==episode_id))
