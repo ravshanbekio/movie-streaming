@@ -109,7 +109,7 @@ async def create_content(
         "dubbed_by":dubbed_by,
         "status":status,
         "subscription_status":subscription_status,
-        "thumbnail":None,
+        "thumbnail":thumbnail,
         "content_url":f"{R2_PUBLIC_ENDPOINT}/{content_object_key}",
         "trailer_url":f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None,
         "created_at":datetime.now()
@@ -138,7 +138,7 @@ async def create_content(
         "content_object_key": content_object_key,
         "content_public_url": f"{R2_PUBLIC_ENDPOINT}/{content_object_key}",
         # Trailer
-        "trailer_upload_url": trailer_presigned_url,
+        "trailer_upload_url": trailer_presigned_url if trailer else None,
         "trailer_object_key": trailer_object_key if trailer else None,
         "trailer_public_url": f"{R2_PUBLIC_ENDPOINT}/{trailer_object_key}" if trailer else None
     }
