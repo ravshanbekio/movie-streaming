@@ -1,10 +1,11 @@
 from fastapi import Depends, APIRouter, HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import select, update, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models.user import User
+from models.user_token import UserToken
 from schemas.user import Token, UserAuthForm
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_DAYS
 
@@ -29,8 +30,10 @@ async def token(form_data: UserAuthForm, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(
         data={"sub": user.phone_number}, expires_delta=access_token_expires
     )
-    await db.execute(update(User).where(User.id == user.id).values({
-        User.refresh_token: access_token
+    await db.execute(insert(UserToken).values({
+        UserToken.user_id: user.id,
+        UserToken.access_token: access_token,
+        UserToken.created_at: datetime.now()
     }))
     await db.commit()
     return {

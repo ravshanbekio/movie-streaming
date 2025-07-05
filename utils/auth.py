@@ -6,6 +6,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from database import get_db
 from models.user import User
+from models.user_token import UserToken
 from schemas.user import TokenData, UserAuthForm
 from datetime import datetime, timedelta
 from typing import Optional
@@ -39,7 +40,7 @@ async def get_current_user(db: AsyncSession = Depends(get_db), token: str = Depe
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    query = await db.execute(select(User).where(User.refresh_token == token))
+    query = await db.execute(select(UserToken).where(UserToken.access_token == token))
     user = query.scalars().first()
     if user is None :
         raise credentials_exception
