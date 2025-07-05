@@ -6,7 +6,7 @@ from models.user import User
 from schemas.user import Token, UserAuthForm
 from datetime import timedelta
 
-from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_DAYS
 
 auth_router = APIRouter(tags=["Token"])
 
@@ -25,7 +25,7 @@ async def token(form_data: UserAuthForm, db: AsyncSession = Depends(get_db)):
             detail="Login yoki parolda xatolik",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     access_token = create_access_token(
         data={"sub": user.phone_number}, expires_delta=access_token_expires
     )
@@ -56,7 +56,7 @@ async def refresh_token(db: AsyncSession = Depends(get_db), token: str = None):
     #         detail="Token has not expired",
     #     )
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_DAYS)
     access_token = create_access_token(
         data={"sub": user.phone_number},
         expires_delta=access_token_expires
