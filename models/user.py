@@ -14,4 +14,3 @@ class User(Base):
     status = Column(String(8), default="active")
     role = Column(String(30))
     joined_at = Column(DateTime)
-    refresh_token = Column(String(255), nullable=True)
