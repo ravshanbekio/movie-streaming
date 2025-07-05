@@ -11,7 +11,7 @@ from schemas.user import UserAuthForm, UserResponse, UserCreateForm, UserUpdateF
 from admin.schemas.user import AdminRole
 from utils.auth import get_password_hash, get_current_active_user
 from utils.exceptions import CreatedResponse, UpdatedResponse, CustomResponse, DeletedResponse
-from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_DAYS
 from utils.pagination import Page
 
 admin_router = APIRouter(tags=["Admin"])
@@ -48,7 +48,7 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
     
     form.password = get_password_hash(form.password)
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_DAYS)
     access_token = create_access_token(
         data={"sub": form.phone_number}, expires_delta=access_token_expires
     )
