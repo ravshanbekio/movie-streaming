@@ -56,8 +56,7 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         "phone_number":form.phone_number,
         "password": form.password,
         "role": form.role,
-        "joined_at":datetime.now(),
-        "refresh_token":access_token
+        "joined_at":datetime.now()
     }
     await create(db=db, model=User, form=data)
     return ORJSONResponse(status_code=201, content={"token":access_token})

@@ -15,7 +15,7 @@ class Content(Base):
     __tablename__ = "contents"
 
     content_id = Column(Integer, primary_key=True, autoincrement=True)
-    uploader_id = Column(Integer, ForeignKey("users.id"))
+    uploader_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     title = Column(String(255))
     description = Column(Text, nullable=True)
     quality = Column(String(10), nullable=True)
