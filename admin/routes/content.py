@@ -29,7 +29,7 @@ async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = De
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
 
-    data = await get_all(db=db, model=Content, filter_query=(Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
+    data = await get_all(db=db, model=Content, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
     seasions = []
     for content in data['data']:
         content.seasions = list(set(ep.seasion for ep in content.episodes))
