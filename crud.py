@@ -5,7 +5,7 @@ from database import get_db
 from utils.pagination import paginate
 
 
-async def get_all(db: AsyncSession, model, filter_query: tuple = None, options: list = None, page: int = 1, limit: int = 20, unique: bool = False):
+async def get_all(db: AsyncSession, model, join = None,  filter_query: tuple = None, options: list = None, group_by: tuple = None, page: int = 1, limit: int = 20, unique: bool = False):
     offset = (page - 1) * limit
 
     # Count total rows
@@ -21,6 +21,10 @@ async def get_all(db: AsyncSession, model, filter_query: tuple = None, options: 
         query = query.where(filter_query)
     if options is not None:
         query = query.options(*options)
+    if join:
+        query = query.join(*join)
+    if group_by:
+        query = query.group_by(group_by)
 
     result = await db.execute(query)
     if unique:

@@ -13,7 +13,8 @@ from crud import get_all, get_one, create, change, remove
 from models.user import User
 from models.genre import Genre
 from models.content import Content, movie_genre_association
-from admin.schemas.content import ContentResponse, ContentDetailResponse
+from models.episode import Episode
+from admin.schemas.content import ContentResponse, ContentDetailResponse, ContentSchema, ContentStatusEnum
 from admin.schemas.user import AdminRole
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
@@ -25,11 +26,29 @@ content_router = APIRouter(tags=["Content"], prefix="/contents")
 MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
-async def get_all_contents(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
+async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
+    
+    filter_query = None
+    join = None
+    group_by = None
+    if status:
+        if status == ContentSchema.shows:
+            join = (Episode, Content.content_id==Episode.content_id)
+            group_by = (Content.content_id)
+        if status == ContentSchema.films:
+            join = (Episode, Content.content_id!=Episode.content_id)
+            group_by = (Content.content_id)
+        if status == ContentSchema.ongoing:
+            filter_query = (Content.status==ContentStatusEnum.ongoing)
+        if status == ContentSchema.stopped:
+            filter_query = (Content.status==ContentStatusEnum.stopped)
+        if status == ContentSchema.premium:
+            filter_query = (Content.subscription_status==True)
 
-    data = await get_all(db=db, model=Content, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
+    data = await get_all(db=db, model=Content, filter_query=filter_query, join=join, group_by=group_by, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
+
     seasions = []
     for content in data['data']:
         content.seasions = list(set(ep.seasion for ep in content.episodes))
@@ -58,7 +77,7 @@ async def create_content(
     genre: List[int] = Form(None, description="Janr", repr=False),
     release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
     dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
-    status: str = Form(description="Status", repr=False),
+    status: ContentStatusEnum = Form(description="Status", repr=False),
     subscription_status: bool = Form(description="Obunalik kontent", repr=False),
     thumbnail: UploadFile = File(description="Rasm", repr=False),
     content: UploadFile = File(description="Content", repr=False),
@@ -132,7 +151,7 @@ async def update_content(
     genre: Optional[List[int]] = Form(None, description="Janr", repr=False),
     release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
     dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
-    status: Optional[str] = Form(None, description="Status", repr=False),
+    status: Optional[ContentStatusEnum] = Form(None, description="Status", repr=False),
     subscription_status: Optional[bool] = Form(None, description="Obunalik kontent", repr=False),
     thumbnail: Optional[UploadFile] = File(None, description="Rasm", repr=False),
     db: AsyncSession = Depends(get_db),
