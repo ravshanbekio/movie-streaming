@@ -13,7 +13,7 @@ class Episode(Base):
     episode_video = Column(String(255))
     episode_thumbnail = Column(String(255))
     duration = Column(Integer, default=0)
-    is_processing = Column(Boolean, default=True)
+    is_processing = Column(Boolean, default=False)
     created_at = Column(DateTime)
 
     # Relationships

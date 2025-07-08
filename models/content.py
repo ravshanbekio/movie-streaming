@@ -26,7 +26,7 @@ class Content(Base):
     thumbnail = Column(String(255))
     content_url = Column(String(255))
     trailer_url = Column(String(255), nullable=True)
-    is_processing = Column(Boolean, default=True)
+    is_processing = Column(Boolean, default=False)
     created_at = Column(DateTime)
 
     # Relationships
