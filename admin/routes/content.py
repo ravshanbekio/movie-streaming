@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Form, UploadFile, File, BackgroundTasks
 from fastapi.responses import ORJSONResponse
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
@@ -26,11 +26,12 @@ content_router = APIRouter(tags=["Content"], prefix="/contents")
 MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
-async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
+async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema = None, search: str = None, 
+                           db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
-    filter_query = None
+    filter_query = []
     join = None
     group_by = None
     if status:
@@ -41,13 +42,17 @@ async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema
             join = (Episode, Content.content_id!=Episode.content_id)
             group_by = (Content.content_id)
         if status == ContentSchema.ongoing:
-            filter_query = (Content.status==ContentStatusEnum.ongoing)
+            filter_query.append(Content.status==ContentStatusEnum.ongoing)
         if status == ContentSchema.stopped:
-            filter_query = (Content.status==ContentStatusEnum.stopped)
+            filter_query.append(Content.status==ContentStatusEnum.stopped)
         if status == ContentSchema.premium:
-            filter_query = (Content.subscription_status==True)
+            filter_query.append(Content.subscription_status==True)
 
-    data = await get_all(db=db, model=Content, filter_query=filter_query, join=join, group_by=group_by, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
+    if search:
+        filter_query.append(or_(Content.title.like(f"%{search}%"), Content.description.like(f"%{search}%")))
+
+    filters = and_(*filter_query) if filter_query else None
+    data = await get_all(db=db, model=Content, filter_query=filters, join=join, group_by=group_by, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
 
     seasions = []
     for content in data['data']:
