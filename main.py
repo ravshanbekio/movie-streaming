@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.auth import auth_router
+from routes.user import user_router
 from admin.routes.admin import admin_router
 from admin.routes.genre import genre_router
 from admin.routes.content import content_router
@@ -22,6 +23,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 #app.mount("/admin", admin_app)
 
 app.include_router(auth_router)
+app.include_router(user_router)
 app.include_router(admin_router)
 app.include_router(genre_router)
 app.include_router(content_router)
