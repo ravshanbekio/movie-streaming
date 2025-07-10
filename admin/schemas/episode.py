@@ -4,11 +4,11 @@ from typing import Optional
 class EpisodeResponse(BaseModel):
     id: int
     content_id: int
-    seasion: str
-    episode: str
+    seasion: int
+    episode: int
     episode_video: str
     episode_thumbnail: str
-    duration: int
+    duration: str
     
     class Config:
         from_attributes = True

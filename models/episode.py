@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, foreign
 
 from database import Base
 
@@ -8,11 +8,11 @@ class Episode(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     content_id = Column(Integer, ForeignKey("contents.content_id"))
-    seasion = Column(String(25))
-    episode = Column(String(50))
+    seasion = Column(Integer)
+    episode = Column(Integer)
     episode_video = Column(String(255))
     episode_thumbnail = Column(String(255))
-    duration = Column(Integer, default=0)
+    duration = Column(String(255))
     is_processing = Column(Boolean, default=False)
     created_at = Column(DateTime)
 

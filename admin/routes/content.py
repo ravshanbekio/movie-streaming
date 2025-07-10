@@ -14,7 +14,7 @@ from models.user import User
 from models.genre import Genre
 from models.content import Content, movie_genre_association
 from models.episode import Episode
-from admin.schemas.content import ContentResponse, ContentDetailResponse, ContentSchema, ContentStatusEnum
+from admin.schemas.content import ContentResponse, ContentDetailResponse, ContentSchema, ContentStatusEnum, ContentType
 from admin.schemas.user import AdminRole
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
@@ -32,15 +32,11 @@ async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     filter_query = []
-    join = None
-    group_by = None
     if status:
         if status == ContentSchema.shows:
-            join = (Episode, Content.content_id==Episode.content_id)
-            group_by = (Content.content_id)
+            filter_query.append(Content.type==ContentType.show)
         if status == ContentSchema.films:
-            join = (Episode, Content.content_id!=Episode.content_id)
-            group_by = (Content.content_id)
+            filter_query.append(Content.type==ContentType.film)
         if status == ContentSchema.ongoing:
             filter_query.append(Content.status==ContentStatusEnum.ongoing)
         if status == ContentSchema.stopped:
@@ -52,7 +48,7 @@ async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema
         filter_query.append(or_(Content.title.like(f"%{search}%"), Content.description.like(f"%{search}%")))
 
     filters = and_(*filter_query) if filter_query else None
-    data = await get_all(db=db, model=Content, filter_query=filters, join=join, group_by=group_by, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
+    data = await get_all(db=db, model=Content, filter_query=filters, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
 
     seasions = []
     for content in data['data']:
@@ -87,6 +83,9 @@ async def create_content(
     thumbnail: UploadFile = File(description="Rasm", repr=False),
     content: UploadFile = File(description="Content", repr=False),
     trailer: Optional[UploadFile] = File(None, description="Trailer Object KEY", repr=False),
+    content_duration: Optional[str] = Form(None, description="Content duration", repr=False),
+    trailer_duration: Optional[str] = Form(None, description="Trailer duration"),
+    type: ContentType = Form(description="Content type"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
     ):
@@ -127,6 +126,9 @@ async def create_content(
             "dubbed_by":dubbed_by,
             "status":status,
             "subscription_status":subscription_status,
+            "content_duration":content_duration,
+            "trailer_duration":trailer_duration,
+            "type":type,
             "thumbnail":None,
             "content_url":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/contents/{content.filename}",
             "trailer_url":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/trailers/{trailer.filename}" if trailer else None,

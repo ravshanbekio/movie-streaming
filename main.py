@@ -10,7 +10,9 @@ from admin.routes.genre import genre_router
 from admin.routes.content import content_router
 from admin.routes.episodes import episode_router
 
+#User side
 from user.routes.contents import content_router as user_content_router
+from user.routes.episode import episode_router as user_episode_router
 
 app = FastAPI()
 
@@ -33,3 +35,4 @@ app.include_router(content_router)
 app.include_router(episode_router)
 
 app.include_router(user_content_router)
+app.include_router(user_episode_router)
