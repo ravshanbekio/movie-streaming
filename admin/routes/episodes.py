@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends, Form, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, Form, UploadFile, File
+from fastapi.responses import JSONResponse
 from sqlalchemy import and_
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from botocore.exceptions import BotoCoreError, ClientError
+from collections import defaultdict
+from datetime import datetime
 
 from database import get_db
 from crud import get_all, get_one, create, change, remove
@@ -15,24 +19,44 @@ from utils.auth import get_current_active_user
 from utils.compressor import upload_thumbnail_to_r2
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
 
-episode_router = APIRouter(tags=["Episodes"], prefix="/episodes")
+episode_router = APIRouter(tags=["Episode"], prefix="/episodes")
 THUMBNAIL_UPLOAD_DIR = "episodes"
 
 @episode_router.get("/all")
-async def get_all_episodes(content_id: int, seasion: str, page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+async def get_all_episode(content_id: int, seasion: str = None, page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar mavjud emas")
     
-    return await get_all(db=db, model=Episode, filter_query=and_(Episode.content_id==content_id, Episode.seasion==seasion.lower()))
+    content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id), options=[joinedload(Content.episodes)])
+    if not content:
+        return CustomResponse(status_code=400, detail="Bunday ma'lumot topilmadi")
+
+    grouped = defaultdict(list)
+    for episode in content.episodes:
+        grouped[episode.seasion].append({
+            "id": episode.id,
+            "episode": episode.episode,
+            "episode_video": episode.episode_video,
+            "episode_thumbnail": episode.episode_thumbnail,
+            "duration": episode.duration,
+            "created_at": episode.created_at,
+        })
+    return JSONResponse(status_code=200, content=[
+        {
+        "seasion":int(key),
+        "episodes":value
+    }
+    for key, value in grouped.items()
+    ])
 
 @episode_router.post("/create_episode")
 async def create_new_episode(
-    background_task: BackgroundTasks,
-    seasion: str = Form(description="Seasion", repr=False),
-    content_id: int = Form(description="Content ID", repr=False),
-    episode: str = Form(description="Episode", repr=False),
-    episode_video: UploadFile = File(description="Episode", repr=False),
+    seasion: int = Form(description="Seasion", repisoder=False),
+    content_id: int = Form(description="Content ID", repisoder=False),
+    episode: int = Form(description="episode", repisoder=False),
+    episode_video: UploadFile = File(description="Episode video", repisoder=False),
     episode_thumbnail: UploadFile = Form(description="Episode thumbnail"),
+    duration: str = Form(description="Episode duration"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -55,9 +79,11 @@ async def create_new_episode(
         form = {
         "content_id":content_id,
         "seasion":seasion,
-        "episode":episode.lower(),
+        "episode":episode,
         "episode_video":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/episodes/{episode_video.filename}",
-        "episode_thumbnail":episode_thumbnail
+        "episode_thumbnail":episode_thumbnail,
+        "duration":duration,
+        "created_at":datetime.now()
         }
 
         if episode_thumbnail:
@@ -77,7 +103,7 @@ async def delete_episode(episode_id: int, db: AsyncSession = Depends(get_db), cu
 
     get_episode = await get_one(db=db, model=Episode, filter_query=(Episode.id==episode_id))
     if not get_episode:
-        return CustomResponse(status_code=400, detail="Bunday episode mavjud emas")
+        return CustomResponse(status_code=400, detail="Bunday epizod mavjud emas")
 
-    await remove(db=db, model=Episode, filter_query=(Episode.id==episode_id))
+    await remove(db=db, model=Episode, filter_query=(Episode.id==Episode))
     return DeletedResponse()

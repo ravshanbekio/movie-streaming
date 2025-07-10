@@ -4,10 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.auth import auth_router
 from routes.user import user_router
+
 from admin.routes.admin import admin_router
 from admin.routes.genre import genre_router
 from admin.routes.content import content_router
 from admin.routes.episodes import episode_router
+
+#User side
+from user.routes.contents import content_router as user_content_router
+from user.routes.episode import episode_router as user_episode_router
 
 app = FastAPI()
 
@@ -28,3 +33,6 @@ app.include_router(admin_router)
 app.include_router(genre_router)
 app.include_router(content_router)
 app.include_router(episode_router)
+
+app.include_router(user_content_router)
+app.include_router(user_episode_router)

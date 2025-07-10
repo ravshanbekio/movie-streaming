@@ -13,6 +13,10 @@ class ContentSchema(str, Enum):
     stopped = "stopped"
     premium = "premium"
 
+class ContentType(str, Enum):
+    show = "show"
+    film = "film"
+
 class ContentStatusEnum(str, Enum):
     ongoing = "davom etayotgan"
     stopped = "tugatilgan"
@@ -25,6 +29,8 @@ class ContentResponse(BaseModel):
     dubbed_by: Optional[str]
     status: ContentStatusEnum
     subscription_status: bool
+    content_duration: Optional[str]
+    trailer_duration: Optional[str]
     thumbnail: str
 
     genre_data: List[GenreResponse]
@@ -48,4 +54,3 @@ class ContentDetailResponse(BaseModel):
     class Config:
         orm_mode = True
         from_attributes = True
-
