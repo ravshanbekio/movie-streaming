@@ -6,7 +6,11 @@ Base = declarative_base()
 
 DATABASE_URL = "mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db"
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, 
+                echo=True,
+                pool_recycle=280,
+                pool_pre_ping=True
+    )
 AsyncSessionLocal = async_sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 async def get_db():
