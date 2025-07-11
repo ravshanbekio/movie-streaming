@@ -27,7 +27,7 @@ MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
 async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema = None, search: str = None, 
-                           db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+                           db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
@@ -48,20 +48,7 @@ async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema
         filter_query.append(or_(Content.title.like(f"%{search}%"), Content.description.like(f"%{search}%")))
 
     filters = and_(*filter_query) if filter_query else None
-    data = await get_all(db=db, model=Content, filter_query=filters, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
-
-    seasions = []
-    for content in data['data']:
-        content.seasions = list(set(ep.seasion for ep in content.episodes))
-        del content.episodes
-
-    result = [ContentResponse.model_validate(content).model_dump() for content in data["data"]]
-    return ORJSONResponse({
-        "total_pages": data["total_pages"],
-        "current_page": data["current_page"],
-        "limit": data["limit"],
-        "data": result
-    })
+    return await get_all(db=db, model=Content, filter_query=filters, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
 
 @content_router.get("/one")
 async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> ContentDetailResponse:

@@ -30,7 +30,7 @@ async def get_all_episode(content_id: int, seasion: str = None, page: int = 1, l
     content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id), options=[joinedload(Content.episodes)])
     if not content:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot topilmadi")
-
+    
     grouped = defaultdict(list)
     for episode in content.episodes:
         grouped[episode.seasion].append({
@@ -39,7 +39,7 @@ async def get_all_episode(content_id: int, seasion: str = None, page: int = 1, l
             "episode_video": episode.episode_video,
             "episode_thumbnail": episode.episode_thumbnail,
             "duration": episode.duration,
-            "created_at": episode.created_at,
+            "created_at": episode.created_at.isoformat(),
         })
     return JSONResponse(status_code=200, content=[
         {

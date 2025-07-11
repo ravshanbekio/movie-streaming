@@ -32,9 +32,9 @@ class ContentResponse(BaseModel):
     content_duration: Optional[str]
     trailer_duration: Optional[str]
     thumbnail: str
+    type: ContentType
 
     genre_data: List[GenreResponse]
-    seasions: Optional[List[str]] = []
 
     class Config:
         from_attributes = True
