@@ -27,7 +27,7 @@ MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
 async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema = None, search: str = None, 
-                           db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
+                           db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
@@ -56,7 +56,6 @@ async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema
         del content.episodes
 
     result = [ContentResponse.model_validate(content).model_dump() for content in data["data"]]
-
     return ORJSONResponse({
         "total_pages": data["total_pages"],
         "current_page": data["current_page"],
@@ -69,7 +68,12 @@ async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_u
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
-    return await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
+    data = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
+    if not data:
+        return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
+    
+    return data
+    
 
 @content_router.post("/create_content")
 async def create_content(
