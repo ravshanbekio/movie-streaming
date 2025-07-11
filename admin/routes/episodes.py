@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from botocore.exceptions import BotoCoreError, ClientError
 from collections import defaultdict
 from datetime import datetime
+from typing import Optional
 
 from database import get_db
 from crud import get_all, get_one, create, change, remove
@@ -14,7 +15,7 @@ from models.episode import Episode
 from models.content import Content
 from admin.schemas.episode import EpisodeResponse
 from admin.schemas.user import AdminRole
-from utils.exceptions import CreatedResponse, DeletedResponse, CustomResponse
+from utils.exceptions import CreatedResponse, DeletedResponse, CustomResponse, UpdatedResponse
 from utils.auth import get_current_active_user
 from utils.compressor import upload_thumbnail_to_r2
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
@@ -51,10 +52,10 @@ async def get_all_episode(content_id: int, seasion: str = None, page: int = 1, l
 
 @episode_router.post("/create_episode")
 async def create_new_episode(
-    seasion: int = Form(description="Seasion", repisoder=False),
-    content_id: int = Form(description="Content ID", repisoder=False),
-    episode: int = Form(description="episode", repisoder=False),
-    episode_video: UploadFile = File(description="Episode video", repisoder=False),
+    seasion: int = Form(description="Seasion", repr=False),
+    content_id: int = Form(description="Content ID", repr=False),
+    episode: int = Form(description="episode", repr=False),
+    episode_video: UploadFile = File(description="Episode video", repr=False),
     episode_thumbnail: UploadFile = Form(description="Episode thumbnail"),
     duration: str = Form(description="Episode duration"),
     db: AsyncSession = Depends(get_db),
@@ -95,6 +96,44 @@ async def create_new_episode(
 
     except (BotoCoreError, ClientError) as e:
         return CustomResponse(status_code=400, detail=str(e))
+    
+@episode_router.put("/update_episode")
+async def update_episode(
+    episode_id: int = Form(description="Episode ID", repr=False),
+    seasion: Optional[int] = Form(None, description="Seasion", repr=False),
+    content_id: Optional[int] = Form(None, description="Content ID", repr=False),
+    episode: Optional[int] = Form(None, description="episode", repr=False),
+    episode_thumbnail: Optional[UploadFile] = Form(None, description="Episode thumbnail"),
+    duration: Optional[str] = Form(None, description="Episode duration"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    if current_user.role not in AdminRole:
+        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar mavjud emas")
+    
+    get_episode = await get_one(db=db, model=Episode, filter_query=(Episode.id==episode_id))
+    if not get_episode:
+        return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
+    
+    get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id))
+    if not get_content:
+        return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
+
+    form = {}
+    if seasion:
+        form['seasion'] = seasion
+    if content_id:
+        form['content_id'] = content_id
+    if episode:
+        form['episode'] = episode
+    if duration:
+        form['duration'] = duration
+    if episode_thumbnail:
+        save_thumbnail = await upload_thumbnail_to_r2(episode_thumbnail)
+        form["episode_thumbnail"] = save_thumbnail
+
+    await change(db=db, model=Episode, filter_query=(Episode.id==episode_id), form=form)
+    return UpdatedResponse()
 
 @episode_router.delete("/delete_episode")
 async def delete_episode(episode_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
@@ -105,5 +144,5 @@ async def delete_episode(episode_id: int, db: AsyncSession = Depends(get_db), cu
     if not get_episode:
         return CustomResponse(status_code=400, detail="Bunday epizod mavjud emas")
 
-    await remove(db=db, model=Episode, filter_query=(Episode.id==Episode))
+    await remove(db=db, model=Episode, filter_query=(Episode.id==episode_id))
     return DeletedResponse()
