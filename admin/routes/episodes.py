@@ -84,7 +84,7 @@ async def create_new_episode(
         "content_id":content_id,
         "seasion":seasion,
         "episode":episode,
-        "episode_video":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/episodes/{episode_video.filename}",
+        "episode_video":f"{R2_PUBLIC_ENDPOINT}/episodes/{episode_video.filename}",
         "episode_thumbnail":episode_thumbnail,
         "duration":duration,
         "created_at":datetime.now()
