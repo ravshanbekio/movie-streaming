@@ -19,7 +19,7 @@ from admin.schemas.user import AdminRole
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
-from utils.compressor import upload_thumbnail_to_r2
+from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_VIDEO_FORMATS, AVAILABLE_IMAGE_FORMATS
 from utils.pagination import Page
 
 content_router = APIRouter(tags=["Content"], prefix="/contents")
@@ -92,6 +92,9 @@ async def create_content(
             return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
         
     try:
+        if content.content_type not in AVAILABLE_VIDEO_FORMATS: 
+            return CustomResponse(status_code=400, detail="Video formati noto'g'ri")
+            
         # Cloudga animeni yuklash
         r2.upload_fileobj(
             Fileobj=content.file,
@@ -102,6 +105,9 @@ async def create_content(
 
         # Cloudga trailerni yuklash (agar bor bo'lsa)
         if trailer:
+            if trailer.content_type not in AVAILABLE_VIDEO_FORMATS:
+                return CustomResponse(status_code=400, detail="Video formati noto'g'ri")
+                
             r2.upload_fileobj(
             Fileobj=trailer.file,
             Bucket=R2_BUCKET,
@@ -127,6 +133,9 @@ async def create_content(
         }
 
         if thumbnail:
+            if thumbnail.content_type not in AVAILABLE_IMAGE_FORMATS:
+                return CustomResponse(status_code=400, detail="Rasm formati noto'g'ri")
+                
             save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
             form["thumbnail"] = save_thumbnail
 
@@ -197,8 +206,11 @@ async def update_content(
     if type:
         form["type"] = type
     if thumbnail:
+        if thumbnail.content_type not in AVAILABLE_IMAGE_FORMATS:
+            return CustomResponse(status_code=400, detail="Rasm formati noto'g'ri")
+                
         save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
-        form['thumbnail'] = save_thumbnail
+        form["thumbnail"] = save_thumbnail
 
     await change(db=db, model=Content, filter_query=(Content.content_id==id), form=form)
     return UpdatedResponse()

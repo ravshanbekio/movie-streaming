@@ -17,7 +17,7 @@ from admin.schemas.episode import EpisodeResponse
 from admin.schemas.user import AdminRole
 from utils.exceptions import CreatedResponse, DeletedResponse, CustomResponse, UpdatedResponse
 from utils.auth import get_current_active_user
-from utils.compressor import upload_thumbnail_to_r2
+from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_IMAGE_FORMATS, AVAILABLE_VIDEO_FORMATS
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
 
 episode_router = APIRouter(tags=["Episode"], prefix="/episodes")
@@ -69,6 +69,9 @@ async def create_new_episode(
         return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
 
     try:
+        if episode_video.content_type not in AVAILABLE_VIDEO_FORMATS:
+            return CustomResponse(status_code=400, detail="Video formati noto'g'ri")
+            
         #Cloudga yuklash
         r2.upload_fileobj(
             Fileobj=episode_video.file,
@@ -88,6 +91,9 @@ async def create_new_episode(
         }
 
         if episode_thumbnail:
+            if episode_thumbnail.content_type not in AVAILABLE_IMAGE_FORMATS:
+                return CustomResponse(status_code=400, detail="Rasm formati noto'g'ri")
+        
             save_thumbnail = await upload_thumbnail_to_r2(episode_thumbnail)
             form["episode_thumbnail"] = save_thumbnail
 
@@ -129,6 +135,9 @@ async def update_episode(
     if duration:
         form['duration'] = duration
     if episode_thumbnail:
+        if episode_thumbnail.content_type not in AVAILABLE_IMAGE_FORMATS:
+            return CustomResponse(status_code=400, detail="Rasm formati noto'g'ri")
+        
         save_thumbnail = await upload_thumbnail_to_r2(episode_thumbnail)
         form["episode_thumbnail"] = save_thumbnail
 

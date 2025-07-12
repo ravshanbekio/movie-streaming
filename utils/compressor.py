@@ -4,6 +4,25 @@ from io import BytesIO
 
 from .r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
 
+AVAILABLE_VIDEO_FORMATS = [
+    "video/mp4",
+    "video/quicktime",
+    "video/x-msvideo", 
+    "video/x-ms-wmv",     
+    "video/x-matroska",    
+    "video/webm",          
+    "video/x-flv" 
+]
+AVAILABLE_IMAGE_FORMATS = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/bmp", 
+    "image/svg+xml", 
+    "image/tiff"
+]
+
 async def upload_thumbnail_to_r2(thumbnail: UploadFile) -> str:
     # Create unique object key
     extension = thumbnail.filename.split(".")[-1]
