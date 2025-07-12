@@ -193,7 +193,7 @@ async def update_content(
     if status:
         form["status"] = status
     if subscription_status:
-        form["subcription_status"] = subscription_status
+        form["subscription_status"] = subscription_status
     if type:
         form["type"] = type
     if thumbnail:
