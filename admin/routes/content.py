@@ -151,6 +151,7 @@ async def update_content(
     dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
     status: Optional[ContentStatusEnum] = Form(None, description="Status", repr=False),
     subscription_status: Optional[bool] = Form(None, description="Obunalik kontent", repr=False),
+    type: Optional[ContentType] = Form(None, description="Content type", repr=False),
     thumbnail: Optional[UploadFile] = File(None, description="Rasm", repr=False),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -191,6 +192,10 @@ async def update_content(
         form["dubbed_by"] = dubbed_by
     if status:
         form["status"] = status
+    if subscription_status:
+        form["subcription_status"] = subscription_status
+    if type:
+        form["type"] = type
     if thumbnail:
         save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
         form['thumbnail'] = save_thumbnail
