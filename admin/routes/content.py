@@ -55,7 +55,7 @@ async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_u
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
-    data = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id, Content.uploader_id==current_user.id), options=[joinedload(Content.genre_data)])
+    data = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==id), options=[joinedload(Content.genre_data)])
     if not data:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     

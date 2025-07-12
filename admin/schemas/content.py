@@ -48,6 +48,7 @@ class ContentDetailResponse(BaseModel):
     status: ContentStatusEnum
     subscription_status: bool
     thumbnail: str
+    type: ContentType
 
     genre_data: List[GenreResponse]
 
