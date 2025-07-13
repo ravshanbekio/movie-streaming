@@ -91,9 +91,6 @@ async def create_new_episode(
         }
 
         if episode_thumbnail:
-            if episode_thumbnail.content_type not in AVAILABLE_IMAGE_FORMATS:
-                return CustomResponse(status_code=400, detail="Rasm formati noto'g'ri")
-        
             save_thumbnail = await upload_thumbnail_to_r2(episode_thumbnail)
             form["episode_thumbnail"] = save_thumbnail
 
@@ -120,24 +117,21 @@ async def update_episode(
     get_episode = await get_one(db=db, model=Episode, filter_query=(Episode.id==episode_id))
     if not get_episode:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
-    
-    get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id))
-    if not get_content:
-        return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
 
     form = {}
     if seasion:
         form['seasion'] = seasion
     if content_id:
+        get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id))
+        if not get_content:
+            return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
+        
         form['content_id'] = content_id
     if episode:
         form['episode'] = episode
     if duration:
         form['duration'] = duration
     if episode_thumbnail:
-        if episode_thumbnail.content_type not in AVAILABLE_IMAGE_FORMATS:
-            return CustomResponse(status_code=400, detail="Rasm formati noto'g'ri")
-        
         save_thumbnail = await upload_thumbnail_to_r2(episode_thumbnail)
         form["episode_thumbnail"] = save_thumbnail
 

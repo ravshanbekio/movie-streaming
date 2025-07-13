@@ -7,11 +7,8 @@ from .genre import GenreResponse
 from .episode import EpisodeSeasionResponse
 
 class ContentSchema(str, Enum):
-    shows = "shows"
-    films = "films"
     ongoing = "ongoing"
     stopped = "stopped"
-    premium = "premium"
 
 class ContentType(str, Enum):
     show = "show"

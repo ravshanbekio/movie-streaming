@@ -26,23 +26,30 @@ content_router = APIRouter(tags=["Content"], prefix="/contents")
 MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
-async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema = None, search: str = None, 
+async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema = None, search: str = None, subscription_status: bool = None,
+                           content_type: ContentType = None, genre_id: int = None,
                            db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     filter_query = []
     if status:
-        if status == ContentSchema.shows:
-            filter_query.append(Content.type==ContentType.show)
-        if status == ContentSchema.films:
-            filter_query.append(Content.type==ContentType.film)
         if status == ContentSchema.ongoing:
             filter_query.append(Content.status==ContentStatusEnum.ongoing)
         if status == ContentSchema.stopped:
             filter_query.append(Content.status==ContentStatusEnum.stopped)
-        if status == ContentSchema.premium:
-            filter_query.append(Content.subscription_status==True)
+    
+    if subscription_status is not None:
+        filter_query.append(Content.subscription_status==subscription_status)
+        
+    if content_type:
+        filter_query.append(Content.type==content_type)
+        
+    if genre_id:
+        get_content_by_genre = await get_all(db=db, model=movie_genre_association, filter_query=(movie_genre_association.c.genre_id==genre_id), page=1, limit=100)
+        content_ids = [row for row in get_content_by_genre['data']]
+        
+        filter_query.append(Content.content_id.in_(content_ids))
 
     if search:
         filter_query.append(or_(Content.title.like(f"%{search}%"), Content.description.like(f"%{search}%")))
@@ -133,9 +140,6 @@ async def create_content(
         }
 
         if thumbnail:
-            if thumbnail.content_type not in AVAILABLE_IMAGE_FORMATS:
-                return CustomResponse(status_code=400, detail="Rasm formati noto'g'ri")
-                
             save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
             form["thumbnail"] = save_thumbnail
 
@@ -201,14 +205,11 @@ async def update_content(
         form["dubbed_by"] = dubbed_by
     if status:
         form["status"] = status
-    if subscription_status:
+    if subscription_status is not None:
         form["subscription_status"] = subscription_status
     if type:
         form["type"] = type
     if thumbnail:
-        if thumbnail.content_type not in AVAILABLE_IMAGE_FORMATS:
-            return CustomResponse(status_code=400, detail="Rasm formati noto'g'ri")
-                
         save_thumbnail = await upload_thumbnail_to_r2(thumbnail)
         form["thumbnail"] = save_thumbnail
 

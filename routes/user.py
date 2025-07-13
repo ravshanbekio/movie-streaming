@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import ORJSONResponse
+from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 

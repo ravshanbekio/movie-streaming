@@ -47,12 +47,15 @@ async def get_all(
 
     return await paginate(data=data, total=total, page=page, limit=limit)
 
-async def get_one(db: AsyncSession, model, filter_query, options = None):
+async def get_one(db: AsyncSession, model, filter_query, options = None, first: bool = False):
     query = select(model).where(filter_query)
     if options is not None:
         query = query.options(*options)
-
+        
     result = await db.execute(query)
+    
+    if first:
+        return result.unique().first()
     return result.unique().scalar_one_or_none()
     
 async def create(db: AsyncSession, model, form: dict, id: bool = False, flush: bool = False):
