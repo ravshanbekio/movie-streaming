@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 
 from database import Base
 
@@ -11,3 +12,5 @@ class UserToken(Base):
     refresh_token = Column(String(255), unique=True)
     user_device = Column(String(100), nullable=True)
     created_at = Column(DateTime)
+    
+    user_data = relationship("User", back_populates="user_token")

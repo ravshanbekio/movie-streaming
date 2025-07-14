@@ -70,7 +70,7 @@ async def create_new_episode(
 
     try:
         if episode_video.content_type not in AVAILABLE_VIDEO_FORMATS:
-            return CustomResponse(status_code=400, detail="Video formati noto'g'ri")
+            return CustomResponse(status_code=400, detail=f"Video formati noto'g'ri {episode_video.content_type}")
             
         #Cloudga yuklash
         r2.upload_fileobj(
@@ -95,7 +95,7 @@ async def create_new_episode(
             form["episode_thumbnail"] = save_thumbnail
 
         await create(db=db, model=Episode, form=form)
-        return CreatedResponse()
+        return CreatedResponse(detail=f"{episode_video.content_type}")
 
     except (BotoCoreError, ClientError) as e:
         return CustomResponse(status_code=400, detail=str(e))

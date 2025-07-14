@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy.orm import relationship
 
 from database import Base
 
@@ -14,3 +15,5 @@ class User(Base):
     status = Column(String(8), default="active")
     role = Column(String(30))
     joined_at = Column(DateTime)
+    
+    user_token = relationship("UserToken", back_populates="user_data")

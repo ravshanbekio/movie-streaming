@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Form, UploadFile, File, BackgroundTasks
 from fastapi.responses import ORJSONResponse
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, desc
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
@@ -27,12 +27,13 @@ MIN_DATE = date(1970, 1, 1)
 
 @content_router.get("/all")
 async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema = None, search: str = None, subscription_status: bool = None,
-                           content_type: ContentType = None, genre_id: int = None,
+                           content_type: ContentType = None, genre_id: int = None, latest: bool = None,
                            db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> Page[ContentResponse]:
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     filter_query = []
+    order_by = None
     if status:
         if status == ContentSchema.ongoing:
             filter_query.append(Content.status==ContentStatusEnum.ongoing)
@@ -50,12 +51,17 @@ async def get_all_contents(page: int = 1, limit: int = 25, status: ContentSchema
         content_ids = [row for row in get_content_by_genre['data']]
         
         filter_query.append(Content.content_id.in_(content_ids))
+        
+    if latest:
+        order_by = (desc(Content.created_at))
 
     if search:
         filter_query.append(or_(Content.title.like(f"%{search}%"), Content.description.like(f"%{search}%")))
 
     filters = and_(*filter_query) if filter_query else None
-    return await get_all(db=db, model=Content, filter_query=filters, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], unique=True, page=page, limit=limit)
+    return await get_all(db=db, model=Content, filter_query=filters, options=[joinedload(Content.genre_data), selectinload(Content.episodes)], 
+                         order_by=order_by,
+                         unique=True, page=page, limit=limit)
 
 @content_router.get("/one")
 async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)) -> ContentDetailResponse:
@@ -100,7 +106,7 @@ async def create_content(
         
     try:
         if content.content_type not in AVAILABLE_VIDEO_FORMATS: 
-            return CustomResponse(status_code=400, detail="Video formati noto'g'ri")
+            return CustomResponse(status_code=400, detail=f"Video formati noto'g'ri {content.content_type}")
             
         # Cloudga animeni yuklash
         r2.upload_fileobj(
@@ -113,7 +119,7 @@ async def create_content(
         # Cloudga trailerni yuklash (agar bor bo'lsa)
         if trailer:
             if trailer.content_type not in AVAILABLE_VIDEO_FORMATS:
-                return CustomResponse(status_code=400, detail="Video formati noto'g'ri")
+                return CustomResponse(status_code=400, detail=f"Trailer formati noto'g'ri {trailer.content_type}")
                 
             r2.upload_fileobj(
             Fileobj=trailer.file,
