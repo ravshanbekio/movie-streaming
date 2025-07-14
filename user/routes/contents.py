@@ -54,13 +54,4 @@ async def get_content_by_id(content_id: int, db: AsyncSession = Depends(get_db),
     if not content:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     
-    getUserHistory = await get_one(db=db, model=UserHistory, filter_query=and_(UserHistory.user_id==current_user.id, UserHistory.content_id==content_id))
-    if not getUserHistory:
-        form = {
-            "user_id":current_user.id,
-            "content_id":content_id,
-            "created_at":datetime.now()
-        }
-        await create(db=db, model=UserHistory, form=form)
-    
     return content

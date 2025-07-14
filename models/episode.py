@@ -18,3 +18,4 @@ class Episode(Base):
 
     # Relationships
     content = relationship("Content", primaryjoin="Episode.content_id==Content.content_id", back_populates="episodes")
+    user_history = relationship("UserHistory", back_populates="episode")

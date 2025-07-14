@@ -26,18 +26,6 @@ async def get_episode(episode_id: int, db: AsyncSession = Depends(get_db), curre
     if not getEpisode:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     
-    getUserHistory = await get_one(db=db, model=UserHistory, filter_query=and_(UserHistory.user_id==current_user.id,
-                                                                               UserHistory.content_id==getEpisode.content_id
-                                                                               ))
-    if not getUserHistory:
-        form = {
-            "user_id":current_user.id,
-            "content_id":getEpisode.content_id,
-            "episode_id":episode_id,
-            "created_at":datetime.now()
-        }
-        await create(db=db, model=UserHistory, form=form)
-    
     form = {
         "episode_id":episode_id
     }

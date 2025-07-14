@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, DateTime, ForeignKey
-
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from database import Base
 
 class UserHistory(Base):
@@ -9,4 +9,8 @@ class UserHistory(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     content_id = Column(Integer, ForeignKey("contents.content_id"))
     episode_id = Column(Integer, ForeignKey("episodes.id"), nullable=True)
+    duration = Column(String(255))
     created_at = Column(DateTime)
+
+    content = relationship("Content", back_populates="user_history")
+    episode = relationship("Episode", back_populates="user_history")
