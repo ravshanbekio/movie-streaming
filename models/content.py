@@ -36,3 +36,4 @@ class Content(Base):
     genre_data = relationship("Genre", secondary=movie_genre_association, back_populates="content")
     episodes = relationship("Episode", back_populates="content")
     user_history = relationship("UserHistory", back_populates="content")
+    user_saved = relationship("UserSaved", back_populates="content")

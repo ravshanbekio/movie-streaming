@@ -23,6 +23,7 @@ if config.config_file_name is not None:
 from models.user import User
 from models.user_token import UserToken
 from models.user_history import UserHistory
+from models.user_saved import UserSaved
 from models.genre import Genre
 from models.content import Content
 from models.episode import Episode
