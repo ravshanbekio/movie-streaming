@@ -38,7 +38,8 @@ async def token(form_data: UserAuthForm, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {
             "access_token": access_token, 
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "role":user.role
         }
     
     
@@ -70,7 +71,8 @@ async def refresh_token(db: AsyncSession = Depends(get_db), token: str = None):
     await db.commit()
     return {
             "access_token": access_token, 
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "role":user.role
         }
 
 # @auth_router.get("/profile")

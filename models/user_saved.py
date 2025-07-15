@@ -6,9 +6,9 @@ class UserSaved(Base):
     __tablename__ = "user_saved"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    content_id = Column(Integer, ForeignKey("contents.content_id"), nullable=True)
-    episode_id = Column(Integer, ForeignKey("episodes.id"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    content_id = Column(Integer, ForeignKey("contents.content_id", ondelete="CASCADE"), nullable=True)
+    episode_id = Column(Integer, ForeignKey("episodes.id", ondelete="CASCADE"))
     created_at = Column(DateTime)
     
     content = relationship("Content", back_populates="user_saved")

@@ -44,9 +44,13 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
         content_ids = [row for row in get_content_by_genre['data']]
         
         filters.append(Content.content_id.in_(content_ids))
+        
+    if current_user.country != "998":
+        limit = 2
 
     filter_query = and_(*filters) if filters else None
     return await get_all(db=db, model=Content, filter_query=filter_query, order_by=order_by, page=page, limit=limit)
+
 
 @content_router.get("/content/one")
 async def get_content_by_id(content_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):

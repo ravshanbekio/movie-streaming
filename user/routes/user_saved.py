@@ -19,6 +19,9 @@ saved_router = APIRouter(tags=["User saved"], prefix="/user")
 
 @saved_router.get("/saved/all")
 async def get_user_saved(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    if current_user.role != "998":
+        limit = 2
+        
     get_user_saved = await get_all(db=db, model=UserSaved, filter_query=(UserSaved.user_id==current_user.id), 
                                    options=[joinedload(UserSaved.content), joinedload(UserSaved.episode)],
                                    order_by=desc(UserSaved.id), 

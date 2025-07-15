@@ -22,11 +22,7 @@ async def get_all_users(role: str = None, page: int = 1, limit: int = 25, \
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
-    filters = []
-    if role:
-        filters.append(User.role == role)
-    
-    filter_query = and_(*filters, User.status.in_(["admin","owner"])) if filters else None
+    filter_query = and_(User.role.in_(["admin","owner"]))
     return await get_all(db=db, model=User, filter_query=filter_query, page=page, limit=limit)
 
 @admin_router.get("/admin/profile")

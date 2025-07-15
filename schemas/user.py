@@ -4,6 +4,7 @@ from typing import Optional
 class Token(BaseModel):
     access_token: str
     token_type: str
+    role: str
 
 class TokenData(BaseModel):
     phone_number: str
@@ -23,6 +24,7 @@ class UserAuthForm(BaseModel):
 class UserCreateForm(BaseModel):
     phone_number: str
     password: str
+    country: str
     role: str = "user"
 
 class UserUpdateForm(BaseModel):

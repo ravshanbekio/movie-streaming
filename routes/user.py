@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from crud import get_one, create, change
 from database import get_db
 from models.user import User
+from models.user_token import UserToken
 from schemas.user import UserCreateForm, UserUpdateForm
 from utils.auth import get_password_hash, get_current_active_user
 from utils.exceptions import CustomResponse, UpdatedResponse
@@ -34,7 +35,8 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         "role": form.role,
         "joined_at":datetime.now()
     }
-    await create(db=db, model=User, form=data)
+    user = await create(db=db, model=User, form=data, id=True)
+    await create(db=db, model=UserToken, form={"user_id":user, "access_token":access_token, "created_at":datetime.now()})
     return ORJSONResponse(status_code=201, content={"token":access_token})
 
 

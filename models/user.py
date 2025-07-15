@@ -11,6 +11,7 @@ class User(Base):
     last_name = Column(String(255), nullable=True)
     phone_number = Column(String(13))
     password = Column(String(255))
+    country = Column(String(10), nullable=True)
     subscribed = Column(Boolean, default=False)
     status = Column(String(8), default="active")
     role = Column(String(30))
