@@ -104,7 +104,8 @@ async def create_content(
     if release_date:
         if release_date < MIN_DATE:
             return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
-        
+    
+    trailer_folder = None
     try:
         if content.content_type not in AVAILABLE_VIDEO_FORMATS: 
             return CustomResponse(status_code=400, detail=f"Video formati noto'g'ri {content.content_type}")
@@ -116,6 +117,8 @@ async def create_content(
             Key=f"contents/{content.filename}",
             ExtraArgs={'ContentType': content.content_type}
         )
+        
+        content_folder = f"{R2_PUBLIC_ENDPOINT}/contents/{content.filename}"
 
         # Cloudga trailerni yuklash (agar bor bo'lsa)
         if trailer:
@@ -127,7 +130,10 @@ async def create_content(
             Bucket=R2_BUCKET,
             Key=f"trailers/{trailer.filename}",
             ExtraArgs={'ContentType': trailer.content_type}
-        )
+        )   
+            trailer_folder = f"{R2_PUBLIC_ENDPOINT}/trailers/{trailer.filename}"
+            
+        background_task.add_task(convert_from_url_to_r2, input_url=content_folder, filename=content.filename, output_prefix="contents")
     
         form = {
             "uploader_id":current_user.id,
@@ -141,8 +147,8 @@ async def create_content(
             "trailer_duration":trailer_duration,
             "type":type,
             "thumbnail":None,
-            "content_url":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/contents/{content.filename}",
-            "trailer_url":f"{R2_PUBLIC_ENDPOINT}/{R2_BUCKET}/trailers/{trailer.filename}" if trailer else None,
+            "content_url":f"{content_folder}/master.m3u8",
+            "trailer_url":f"{trailer_folder}/master.m3u8" if trailer else None,
             "created_at":datetime.now()
         }
 
@@ -155,8 +161,7 @@ async def create_content(
         for genre in get_genre['data']:
             await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
 
-        task = background_task.add_task(convert_from_url_to_r2, input_url=form['content_url'], output_prefix="contents")
-        return CreatedResponse(detail=task)
+        return CreatedResponse()
     
     except (BotoCoreError, ClientError) as e:
         return CustomResponse(status_code=400, detail=str(e))
