@@ -19,7 +19,7 @@ from admin.schemas.user import AdminRole
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
-from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_VIDEO_FORMATS, AVAILABLE_IMAGE_FORMATS
+from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_VIDEO_FORMATS, AVAILABLE_IMAGE_FORMATS, convert_from_url_to_r2
 from utils.pagination import Page
 
 content_router = APIRouter(tags=["Content"], prefix="/contents")
@@ -77,6 +77,7 @@ async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_u
 
 @content_router.post("/create_content")
 async def create_content(
+    background_task: BackgroundTasks,
     title: str = Form(description="Sarlavha", repr=False),
     description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
     genre: List[int] = Form(None, description="Janr", repr=False),
@@ -154,7 +155,8 @@ async def create_content(
         for genre in get_genre['data']:
             await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
 
-        return CreatedResponse()
+        task = background_task.add_task(convert_from_url_to_r2, input_url=form['content_url'], output_prefix="contents")
+        return CreatedResponse(detail=task)
     
     except (BotoCoreError, ClientError) as e:
         return CustomResponse(status_code=400, detail=str(e))

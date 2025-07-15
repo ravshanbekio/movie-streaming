@@ -43,3 +43,27 @@ async def upload_thumbnail_to_r2(thumbnail: UploadFile) -> str:
 
     # Return public URL
     return f"{R2_PUBLIC_ENDPOINT}/{object_key}"
+
+async def convert_from_url_to_r2(input_url, output_prefix):
+    os.makedirs("/tmp/hls", exist_ok=True)
+
+    # ffmpeg command to read from input_url and write to HLS
+    cmd = [
+        "ffmpeg", "-i", input_url,
+        "-preset", "fast", "-g", "48", "-sc_threshold", "0",
+        "-map", "0:0", "-map", "0:1",
+        "-b:v", "3000k", "-b:a", "128k",
+        "-hls_time", "6", "-hls_playlist_type", "vod",
+        "-hls_segment_filename", "/tmp/hls/seg_%03d.ts",
+        "/tmp/hls/master.m3u8"
+    ]
+
+    subprocess.run(cmd, check=True)
+
+    # Upload output to R2
+    for fname in os.listdir("/tmp/hls"):
+        key = f"{output_prefix}/{fname}"
+        with open(f"/tmp/hls/{fname}", "rb") as f:
+            s3.upload_fileobj(f, R2_BUCKET, key)
+
+    return True
