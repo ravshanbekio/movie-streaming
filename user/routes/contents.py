@@ -34,7 +34,7 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
     if content_type:
         filters.append(Content.type==content_type)
     
-    if genre_ids:
+    if genre_ids:   
         for genre_id in genre_ids:
             genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre_id))
             if not genre:
@@ -45,6 +45,7 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
         
         filters.append(Content.content_id.in_(content_ids))
         
+    limit = limit
     if current_user.country != "998":
         limit = 2
 

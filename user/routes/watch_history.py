@@ -20,6 +20,7 @@ watch_history_router = APIRouter(tags=["Watch history"], prefix="/user")
 
 @watch_history_router.get("/get_history")
 async def get_history(page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    limit = limit
     if current_user.country != "998":
         limit = 2
     get_user_history = await get_all(db=db, model=UserHistory, filter_query=(UserHistory.user_id==current_user.id), options=[joinedload(UserHistory.content), 

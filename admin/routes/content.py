@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from datetime import datetime, date
 from botocore.exceptions import BotoCoreError, ClientError
+from redis import Redis
+from rq import Queue
 
 
 from database import get_db
@@ -21,6 +23,10 @@ from utils.auth import get_current_active_user
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
 from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_VIDEO_FORMATS, AVAILABLE_IMAGE_FORMATS, convert_from_url_to_r2
 from utils.pagination import Page
+from utils.rq_tasks import convert_and_upload
+
+redis = Redis()
+task_queue = Queue("video", connection=redis)
 
 content_router = APIRouter(tags=["Content"], prefix="/contents")
 MIN_DATE = date(1970, 1, 1)
@@ -73,7 +79,6 @@ async def get_one_content(id: int, db: AsyncSession = Depends(get_db), current_u
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     
     return data
-    
 
 @content_router.post("/create_content")
 async def create_content(
@@ -133,8 +138,8 @@ async def create_content(
         )   
             trailer_folder = f"{R2_PUBLIC_ENDPOINT}/trailers/{trailer.filename}"
             
-        background_task.add_task(convert_from_url_to_r2, input_url=content_folder, filename=content.filename, output_prefix="contents")
-    
+        task_queue.enqueue(convert_and_upload, input_url=content_folder, filename=content.filename, output_prefix="contents", job_timeout=1800)
+        
         form = {
             "uploader_id":current_user.id,
             "title":title,

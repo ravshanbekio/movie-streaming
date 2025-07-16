@@ -2,7 +2,9 @@ import uuid
 from fastapi import UploadFile
 from io import BytesIO
 import os
-import subprocess
+import asyncio
+import shutil
+from pathlib import Path
 
 from .r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
 
@@ -46,26 +48,55 @@ async def upload_thumbnail_to_r2(thumbnail: UploadFile) -> str:
     # Return public URL
     return f"{R2_PUBLIC_ENDPOINT}/{object_key}"
 
-async def convert_from_url_to_r2(input_url, filename, output_prefix):
-    os.makedirs("/tmp/hls", exist_ok=True)
 
-    # ffmpeg command to read from input_url and write to HLS
+ffmpeg_semaphore = asyncio.Semaphore(1)  # tune to 2 or more if RAM allows
+
+async def convert_from_url_to_r2(input_url: str, filename: str, output_prefix: str):
+    temp_dir = Path("/tmp/hls")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = temp_dir / "master.m3u8"
+    segment_path = str(temp_dir / "seg_%03d.ts")
+
     cmd = [
         "ffmpeg", "-i", input_url,
         "-preset", "fast", "-g", "48", "-sc_threshold", "0",
         "-map", "0:0", "-map", "0:1?",
         "-b:v", "3000k", "-b:a", "128k",
         "-hls_time", "6", "-hls_playlist_type", "vod",
-        "-hls_segment_filename", "/tmp/hls/seg_%03d.ts",
-        "/tmp/hls/master.m3u8"
+        "-hls_segment_filename", segment_path,
+        str(output_path)
     ]
 
-    subprocess.run(cmd, check=True)
+    try:
+        async with ffmpeg_semaphore:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
 
-    # Upload output to R2
-    for fname in os.listdir("/tmp/hls"):
-        key = f"{output_prefix}/{filename}/{fname}"
-        with open(f"/tmp/hls/{fname}", "rb") as f:
-            r2.upload_fileobj(f, R2_BUCKET, key)
+            if proc.returncode != 0:
+                error_msg = stderr.decode().strip()
+                raise RuntimeError(f"FFMPEG failed: {error_msg}")
 
-    return True
+        # Upload output to R2
+        for fname in os.listdir(temp_dir):
+            file_path = temp_dir / fname
+            key = f"{output_prefix}/{filename}/{fname}"
+            with open(file_path, "rb") as f:
+                r2.upload_fileobj(f, R2_BUCKET, key)
+
+        return True
+
+    except Exception as e:
+        return str(e)
+
+    finally:
+        # Clean up temp files to save disk space
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        
+        
+def hello_task():
+    print("✅ This is a test job!", flush=True)

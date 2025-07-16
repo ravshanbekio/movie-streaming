@@ -33,6 +33,7 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         "phone_number":form.phone_number,
         "password": form.password,
         "role": form.role,
+        "country":form.country,
         "joined_at":datetime.now()
     }
     user = await create(db=db, model=User, form=data, id=True)
