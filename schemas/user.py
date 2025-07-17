@@ -22,6 +22,8 @@ class UserAuthForm(BaseModel):
     password: str
 
 class UserCreateForm(BaseModel):
+    first_name: str
+    last_name: str
     phone_number: str
     password: str
     country: str

@@ -30,6 +30,8 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         data={"sub": form.phone_number}, expires_delta=access_token_expires
     )
     data = {
+        "first_name":form.first_name,
+        "last_name":form.last_name,
         "phone_number":form.phone_number,
         "password": form.password,
         "role": form.role,

@@ -26,9 +26,10 @@ class ContentResponse(BaseModel):
     dubbed_by: Optional[str]
     status: ContentStatusEnum
     subscription_status: bool
+    content_url: str
+    thumbnail: str
     content_duration: Optional[str]
     trailer_duration: Optional[str]
-    thumbnail: str
     type: ContentType
 
     genre_data: List[GenreResponse]
@@ -42,9 +43,10 @@ class ContentDetailResponse(BaseModel):
     description: Optional[str]
     release_date: Optional[date]
     dubbed_by: Optional[str]
+    content_url: str
+    thumbnail: str
     status: ContentStatusEnum
     subscription_status: bool
-    thumbnail: str
     type: ContentType
 
     genre_data: List[GenreResponse]

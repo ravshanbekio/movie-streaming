@@ -21,7 +21,7 @@ from admin.schemas.user import AdminRole
 from utils.exceptions import CreatedResponse, UpdatedResponse, DeletedResponse, CustomResponse
 from utils.auth import get_current_active_user
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
-from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_VIDEO_FORMATS, AVAILABLE_IMAGE_FORMATS, convert_from_url_to_r2
+from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_VIDEO_FORMATS, AVAILABLE_IMAGE_FORMATS
 from utils.pagination import Page
 from utils.rq_tasks import convert_and_upload
 
@@ -137,8 +137,9 @@ async def create_content(
             ExtraArgs={'ContentType': trailer.content_type}
         )   
             trailer_folder = f"{R2_PUBLIC_ENDPOINT}/trailers/{trailer.filename}"
+            task_queue.enqueue(convert_and_upload, input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=600)
             
-        task_queue.enqueue(convert_and_upload, input_url=content_folder, filename=content.filename, output_prefix="contents", job_timeout=1800)
+        task_queue.enqueue(convert_and_upload, input_url=content_folder, filename=content.filename, output_prefix="contents", job_timeout=5000)
         
         form = {
             "uploader_id":current_user.id,
@@ -152,8 +153,8 @@ async def create_content(
             "trailer_duration":trailer_duration,
             "type":type,
             "thumbnail":None,
-            "content_url":f"{content_folder}/master.m3u8",
-            "trailer_url":f"{trailer_folder}/master.m3u8" if trailer else None,
+            "content_url":f"{content_folder}/",
+            "trailer_url":f"{trailer_folder}/" if trailer else None,
             "created_at":datetime.now()
         }
 

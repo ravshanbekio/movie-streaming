@@ -7,6 +7,8 @@ from botocore.exceptions import BotoCoreError, ClientError
 from collections import defaultdict
 from datetime import datetime
 from typing import Optional
+from redis import Redis
+from rq import Queue
 
 from database import get_db
 from crud import get_all, get_one, create, change, remove
@@ -19,6 +21,11 @@ from utils.exceptions import CreatedResponse, DeletedResponse, CustomResponse, U
 from utils.auth import get_current_active_user
 from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_IMAGE_FORMATS, AVAILABLE_VIDEO_FORMATS
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
+from utils.rq_tasks import convert_and_upload
+
+
+redis = Redis()
+task_queue = Queue("video", connection=redis)
 
 episode_router = APIRouter(tags=["Episode"], prefix="/episodes")
 THUMBNAIL_UPLOAD_DIR = "episodes"
@@ -79,12 +86,14 @@ async def create_new_episode(
             Key=f"episodes/{episode_video.filename}",
             ExtraArgs={'ContentType': episode_video.content_type}
         )
+        episode_folder = f"{R2_PUBLIC_ENDPOINT}/episodes/{episode_video.filename}"
+        task_queue.enqueue(convert_and_upload, input_url=episode_folder, filename=episode_video.filename, output_prefix="episodes", job_timeout=5000)
 
         form = {
         "content_id":content_id,
         "seasion":seasion,
         "episode":episode,
-        "episode_video":f"{R2_PUBLIC_ENDPOINT}/episodes/{episode_video.filename}",
+        "episode_video":f"{episode_folder}/",
         "episode_thumbnail":episode_thumbnail,
         "duration":duration,
         "created_at":datetime.now()

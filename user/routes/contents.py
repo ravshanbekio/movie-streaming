@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import desc, and_
+from sqlalchemy import desc, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from typing import List
@@ -17,11 +17,14 @@ from utils.exceptions import CustomResponse
 content_router = APIRouter(tags=["Contents"], prefix="/user")
 
 @content_router.get("/contents/all")
-async def get_contents(status: ContentSchema = None, page: int = 1, limit: int = 25,
+async def get_contents(status: ContentSchema = None, page: int = 1, limit: int = 25, search: str = None,
                        subscription_status: bool = None, content_type: ContentType = None, genre_ids: List[int] = Query(default=[]),
                        db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     filters = []
     order_by = desc(Content.created_at)
+    if search:
+        filters.append(or_(Content.title.like(f"%{search}%"), Content.description.like(f"%{search}%")))
+        
     if status:
         if status == ContentSchema.ongoing:
             filters.append(Content.status==ContentStatusEnum.ongoing)
