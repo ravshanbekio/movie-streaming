@@ -91,7 +91,7 @@ async def create_content(
     status: ContentStatusEnum = Form(description="Status", repr=False),
     subscription_status: bool = Form(description="Obunalik kontent", repr=False),
     thumbnail: UploadFile = File(description="Rasm", repr=False),
-    content: UploadFile = File(description="Content", repr=False),
+    content: Optional[UploadFile] = File(None, description="Content", repr=False),
     trailer: Optional[UploadFile] = File(None, description="Trailer Object KEY", repr=False),
     content_duration: Optional[str] = Form(None, description="Content duration", repr=False),
     trailer_duration: Optional[str] = Form(None, description="Trailer duration"),
@@ -109,21 +109,23 @@ async def create_content(
     if release_date:
         if release_date < MIN_DATE:
             return CustomResponse(status_code=400, detail="Sana 1970-yildan past bo'lmasligi kerak")
-    
+    content_folder = None
     trailer_folder = None
     try:
-        if content.content_type not in AVAILABLE_VIDEO_FORMATS: 
-            return CustomResponse(status_code=400, detail=f"Video formati noto'g'ri {content.content_type}")
+        if content:
+            if content.content_type not in AVAILABLE_VIDEO_FORMATS: 
+                return CustomResponse(status_code=400, detail=f"Video formati noto'g'ri {content.content_type}")
+                
+            # Cloudga animeni yuklash
+            r2.upload_fileobj(
+                Fileobj=content.file,
+                Bucket=R2_BUCKET,
+                Key=f"contents/{content.filename}",
+                ExtraArgs={'ContentType': content.content_type}
+            )
             
-        # Cloudga animeni yuklash
-        r2.upload_fileobj(
-            Fileobj=content.file,
-            Bucket=R2_BUCKET,
-            Key=f"contents/{content.filename}",
-            ExtraArgs={'ContentType': content.content_type}
-        )
-        
-        content_folder = f"{R2_PUBLIC_ENDPOINT}/contents/{content.filename}"
+            content_folder = f"{R2_PUBLIC_ENDPOINT}/contents/{content.filename}"
+            task_queue.enqueue(convert_and_upload, input_url=content_folder, filename=content.filename, output_prefix="contents", job_timeout=5000)
 
         # Cloudga trailerni yuklash (agar bor bo'lsa)
         if trailer:
@@ -138,8 +140,6 @@ async def create_content(
         )   
             trailer_folder = f"{R2_PUBLIC_ENDPOINT}/trailers/{trailer.filename}"
             task_queue.enqueue(convert_and_upload, input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=600)
-            
-        task_queue.enqueue(convert_and_upload, input_url=content_folder, filename=content.filename, output_prefix="contents", job_timeout=5000)
         
         form = {
             "uploader_id":current_user.id,
@@ -194,9 +194,6 @@ async def update_content(
     get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==id))
     if not get_content:
         return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
-    
-    if current_user.role != "admin" and get_content.uploader_id != current_user.id:
-        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     if genre:
         get_genre = await get_all(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.auth import auth_router
 from routes.user import user_router
+from routes.fcm_token import fcm_token_router
 
 from admin.routes.admin import admin_router
 from admin.routes.genre import genre_router
@@ -27,15 +28,17 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-#app.mount("/admin", admin_app)
 
+# General
 app.include_router(auth_router)
 app.include_router(user_router)
+app.include_router(fcm_token_router)
+# Admin
 app.include_router(admin_router)
 app.include_router(genre_router)
 app.include_router(content_router)
 app.include_router(episode_router)
-
+# Filial
 app.include_router(user_content_router)
 app.include_router(user_episode_router)
 app.include_router(watch_history_router)

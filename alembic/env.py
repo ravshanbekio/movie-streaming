@@ -27,6 +27,7 @@ from models.user_saved import UserSaved
 from models.genre import Genre
 from models.content import Content
 from models.episode import Episode
+from models.fcm_token import FCMToken
 
 target_metadata = Base.metadata
 

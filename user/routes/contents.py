@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc, and_, or_
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from typing import List
@@ -53,12 +54,12 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
         limit = 2
 
     filter_query = and_(*filters) if filters else None
-    return await get_all(db=db, model=Content, filter_query=filter_query, order_by=order_by, page=page, limit=limit)
+    return await get_all(db=db, model=Content, filter_query=filter_query, options=[joinedload(Content.genre_data)], order_by=order_by, unique=True, page=page, limit=limit)
 
 
 @content_router.get("/content/one")
 async def get_content_by_id(content_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id))
+    content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id), options=[joinedload(Content.genre_data)])
     if not content:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     
