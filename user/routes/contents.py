@@ -9,7 +9,8 @@ from database import get_db
 from crud import get_all, get_one, create
 from models.user import User
 from models.genre import Genre
-from models.content import Content, movie_genre_association
+from models.content import Content
+from models.association import movie_genre_association
 from models.user_history import UserHistory
 from admin.schemas.content import ContentStatusEnum, ContentSchema, ContentType
 from utils.auth import get_current_active_user
@@ -53,6 +54,7 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
     if current_user.country != "998":
         limit = 2
 
+    filters.append(Content.converted_content.isnot(None))
     filter_query = and_(*filters) if filters else None
     return await get_all(db=db, model=Content, filter_query=filter_query, options=[joinedload(Content.genre_data)], order_by=order_by, unique=True, page=page, limit=limit)
 

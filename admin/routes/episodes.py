@@ -44,7 +44,8 @@ async def get_all_episode(content_id: int, seasion: str = None, page: int = 1, l
         grouped[episode.seasion].append({
             "id": episode.id,
             "episode": episode.episode,
-            "episode_video": episode.episode_video,
+            "original_episode": episode.original_episode,
+            "converted_episode": episode.converted_episode,
             "episode_thumbnail": episode.episode_thumbnail,
             "duration": episode.duration,
             "created_at": episode.created_at.isoformat(),
@@ -87,13 +88,12 @@ async def create_new_episode(
             ExtraArgs={'ContentType': episode_video.content_type}
         )
         episode_folder = f"{R2_PUBLIC_ENDPOINT}/episodes/{episode_video.filename}"
-        task_queue.enqueue(convert_and_upload, input_url=episode_folder, filename=episode_video.filename, output_prefix="episodes", job_timeout=5000)
 
         form = {
         "content_id":content_id,
         "seasion":seasion,
         "episode":episode,
-        "episode_video":f"{episode_folder}/",
+        "original_episode":f"{episode_folder}",
         "episode_thumbnail":episode_thumbnail,
         "duration":duration,
         "created_at":datetime.now()
@@ -103,8 +103,11 @@ async def create_new_episode(
             save_thumbnail = await upload_thumbnail_to_r2(episode_thumbnail)
             form["episode_thumbnail"] = save_thumbnail
 
-        await create(db=db, model=Episode, form=form)
-        return CreatedResponse(detail=f"{episode_video.content_type}")
+        created_episode = await create(db=db, model=Episode, form=form, id=True)
+        task_queue.enqueue(convert_and_upload, 
+                           db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_episode,
+                           input_url=episode_folder, filename=episode_video.filename, output_prefix="episodes", job_timeout=5000)
+        return CreatedResponse()
 
     except (BotoCoreError, ClientError) as e:
         return CustomResponse(status_code=400, detail=str(e))

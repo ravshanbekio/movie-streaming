@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from crud import create, get_one
+from crud import create, get_one, get_all
 from models.fcm_token import FCMToken
 from models.user import User
 from schemas.fcm_token import TokenCreate, BroadcastForm
@@ -23,7 +23,7 @@ async def fcm_token(form: TokenCreate, db: AsyncSession = Depends(get_db), curre
 
 @fcm_token_router.post("/broadcast")
 async def broadcast(form: BroadcastForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    get_all_tokens = await get_all(db=db, model=FCMToken, page=0, limit=0)
-    
-    results = send_to_all_users(get_all_tokens, form.title, form.body)
+    get_all_tokens = await get_all(db=db, model=FCMToken, page=1, limit=500)
+    token_list = [t.token for t in get_all_tokens['data']]
+    results = send_to_all_users(token_list, form.title, form.body)
     return {"status":"done"}

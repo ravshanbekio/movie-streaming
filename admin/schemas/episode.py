@@ -6,7 +6,8 @@ class EpisodeResponse(BaseModel):
     content_id: int
     seasion: int
     episode: int
-    episode_video: str
+    original_episode: Optional[str]
+    converted_episode: Optional[str]
     episode_thumbnail: str
     duration: str
     

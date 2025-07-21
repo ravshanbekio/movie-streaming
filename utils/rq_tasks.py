@@ -3,21 +3,57 @@ import os
 import shutil
 from pathlib import Path
 from urllib.parse import urlparse
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 from utils.r2_utils import r2, R2_BUCKET
+
+from crud import change
+from models.episode import Episode
+from models.content import Content
 
 # Assume you have this globally if you used it before
 ffmpeg_semaphore = asyncio.Semaphore(2)
 
-def convert_and_upload(input_url: str, filename: str, output_prefix: str):
+async def convert_and_upload(
+        db,
+        id,
+        input_url: str, 
+        filename: str, 
+        output_prefix: str
+                        ):
     print("[RQ Task] Started", flush=True)
-    asyncio.run(_convert_and_upload_async(input_url, filename, output_prefix))
+    await _convert_and_upload_async(input_url, filename, output_prefix)
+    if output_prefix == "episodes":
+        model = Episode
+        filter_query = Episode.id==id
+        form = {
+            "converted_episode": f"{input_url}/"
+        }
+    elif output_prefix == "contents":
+        model = Content
+        filter_query = Content.content_id==id
+        form = {
+            "converted_content":f"{input_url}/"
+        }
+    elif output_prefix == "trailers":
+        model == Content
+        filter_query = Content.content_id==id
+        form = {
+            "converted_trailer":f"{input_url}/"
+        }
+    
+    #  Create Async DB Session
+    engine = create_async_engine(db, echo=False, future=True)
+    async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    async with async_session() as session:
+        await change(db=session, model=model, filter_query=filter_query, form=form)
 
 async def _convert_and_upload_async(input_url: str, filename: str, output_prefix: str):
     print("[RQ Task] Async started", flush=True)
     temp_dir = Path("/tmp/hls")
     temp_dir.mkdir(parents=True, exist_ok=True)
 
-    # Rendition configs
     renditions = [
         {"name": "360p",  "resolution": "640x360",   "bitrate": "800k",  "maxrate": "856k",  "bufsize": "1200k"},
         {"name": "480p",  "resolution": "854x480",   "bitrate": "1400k", "maxrate": "1498k", "bufsize": "2100k"},
@@ -26,8 +62,8 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
     ]
 
     try:
-        async with ffmpeg_semaphore:
-            for r in renditions:
+        async def convert_rendition(r):
+            async with ffmpeg_semaphore:
                 subdir = temp_dir / r["name"]
                 subdir.mkdir(parents=True, exist_ok=True)
                 segment_path = str(subdir / "seg_%03d.ts")
@@ -39,6 +75,7 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                     "-vf", f"scale={r['resolution']}",
                     "-c:a", "aac", "-ar", "48000",
                     "-c:v", "h264", "-profile:v", "main", "-crf", "20", "-sc_threshold", "0",
+                    "-preset", "ultrafast",
                     "-g", "48", "-keyint_min", "48",
                     "-b:v", r["bitrate"],
                     "-maxrate", r["maxrate"],
@@ -57,7 +94,7 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                 )
                 print(f"[RQ Task] ffmpeg started for {r['name']}", flush=True)
                 try:
-                    _, stderr = await asyncio.wait_for(proc.communicate(), timeout=1800)
+                    _, stderr = await asyncio.wait_for(proc.communicate(), timeout=5000)
                 except asyncio.TimeoutError:
                     proc.kill()
                     await proc.wait()
@@ -66,6 +103,9 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                 if proc.returncode != 0:
                     error_msg = stderr.decode().strip()
                     raise RuntimeError(f"FFmpeg failed for {r['name']}: {error_msg}")
+
+        # ✅ Run all renditions in parallel (with max 2 at once)
+        await asyncio.gather(*[convert_rendition(r) for r in renditions])
 
         # Write master.m3u8
         master_path = temp_dir / "master.m3u8"
@@ -88,12 +128,6 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                     print(f"[RQ Task] Uploaded: {key}", flush=True)
 
         print("[RQ Task] ✅ All renditions uploaded", flush=True)
-
-        # Delete original video from R2
-        parsed = urlparse(input_url)
-        key = parsed.path.lstrip("/")
-        r2.delete_object(Bucket=R2_BUCKET, Key=key)
-        print(f"[RQ TASK] Original video deleted: {key}")
 
     except Exception as e:
         print("[RQ Task] ❌ Exception:", str(e), flush=True)

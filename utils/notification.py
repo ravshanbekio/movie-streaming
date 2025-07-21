@@ -1,7 +1,10 @@
+
+import logging
 import requests
 from typing import List
 
-FIREBASE_API_KEY = "YOUR_FIREBASE_SERVER_KEY"
+
+FIREBASE_API_KEY = "AIzaSyD6_ISAVutGMeimRXbXbmM37f7XHpha2w8"
 FCM_URL = "https://fcm.googleapis.com/fcm/send"
 
 def chunk_list(data: List[str], chunk_size: int = 500):
@@ -22,9 +25,18 @@ def send_push_batch(tokens: List[str], title: str, body: str):
             "body": body
         }
     }
-
     response = requests.post(FCM_URL, json=payload, headers=headers)
-    return response.json()
+    # ✅ Check if response is valid JSON
+    try:
+        return response.json()
+    except requests.exceptions.JSONDecodeError:
+        # Log status code and raw response
+        logging.error(f"FCM error: {response.status_code} - {response.text}")
+        return {
+            "status": "error",
+            "code": response.status_code,
+            "message": response.text
+        }
 
 def send_to_all_users(all_tokens: List[str], title: str, body: str):
     results = []

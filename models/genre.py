@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 
 from database import Base
-from .content import movie_genre_association
+from .association import movie_genre_association
 
 class Genre(Base):
     __tablename__ = "genres"

@@ -50,7 +50,8 @@ async def get_user_saved(page: int = 1, limit: int = 25, db: AsyncSession = Depe
                     "content_id": content.content_id,
                     "title": content.title,
                     "description": content.description,
-                    "content_url": content.content_url,
+                    "original_content": content.original_content,
+                    "converted_content": content.converted_content,
                     "thumbnail": content.thumbnail,
                     "content_duration": content.content_duration,
                     "type": content.type,
@@ -63,7 +64,8 @@ async def get_user_saved(page: int = 1, limit: int = 25, db: AsyncSession = Depe
                 "id": episode.id,
                 "season": episode.seasion,
                 "episode": episode.episode,
-                "episode_video": episode.episode_video,
+                "original_episode": episode.original_episode,
+                "converted_episode":episode.converted_episode,
                 "episode_thumbnail": episode.episode_thumbnail,
                 "duration": str(episode.duration)
             })

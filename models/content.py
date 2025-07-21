@@ -3,13 +3,11 @@ from sqlalchemy.orm import relationship
 
 from database import Base
 from .episode import Episode
+from .genre import Genre
+from .user_history import UserHistory
+from .user_saved import UserSaved
+from .association import movie_genre_association
 
-movie_genre_association = Table(
-    'movie_genre',
-    Base.metadata,
-    Column('content_id', ForeignKey('contents.content_id'), primary_key=True),
-    Column('genre_id', ForeignKey('genres.genre_id'), primary_key=True)
-)
 
 class Content(Base):
     __tablename__ = "contents"
@@ -24,8 +22,10 @@ class Content(Base):
     status = Column(String(100))
     subscription_status = Column(Boolean, default=False)
     thumbnail = Column(String(255))
-    content_url = Column(String(255))
-    trailer_url = Column(String(255), nullable=True)
+    original_content = Column(String(255))
+    converted_content = Column(String(255), nullable=True)
+    original_trailer = Column(String(255), nullable=True)
+    converted_trailer = Column(String(255), nullable=True)
     content_duration = Column(String(255), nullable=True)
     trailer_duration = Column(String(255), nullable=True)
     is_processing = Column(Boolean, default=False)

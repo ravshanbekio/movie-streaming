@@ -28,6 +28,7 @@ from models.genre import Genre
 from models.content import Content
 from models.episode import Episode
 from models.fcm_token import FCMToken
+from models.notification import Notification
 
 target_metadata = Base.metadata
 

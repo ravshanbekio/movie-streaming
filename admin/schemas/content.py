@@ -26,7 +26,10 @@ class ContentResponse(BaseModel):
     dubbed_by: Optional[str]
     status: ContentStatusEnum
     subscription_status: bool
-    content_url: str
+    original_content: Optional[str]
+    converted_content: Optional[str]
+    original_trailer: Optional[str]
+    converted_trailer: Optional[str]
     thumbnail: str
     content_duration: Optional[str]
     trailer_duration: Optional[str]
@@ -43,7 +46,10 @@ class ContentDetailResponse(BaseModel):
     description: Optional[str]
     release_date: Optional[date]
     dubbed_by: Optional[str]
-    content_url: str
+    original_content: Optional[str]
+    converted_content: Optional[str]
+    original_trailer: Optional[str]
+    converted_trailer: Optional[str]
     thumbnail: str
     status: ContentStatusEnum
     subscription_status: bool

@@ -14,7 +14,8 @@ from database import get_db
 from crud import get_all, get_one, create, change, remove
 from models.user import User
 from models.genre import Genre
-from models.content import Content, movie_genre_association
+from models.content import Content
+from models.association import movie_genre_association
 from models.episode import Episode
 from admin.schemas.content import ContentResponse, ContentDetailResponse, ContentSchema, ContentStatusEnum, ContentType
 from admin.schemas.user import AdminRole
@@ -125,7 +126,6 @@ async def create_content(
             )
             
             content_folder = f"{R2_PUBLIC_ENDPOINT}/contents/{content.filename}"
-            task_queue.enqueue(convert_and_upload, input_url=content_folder, filename=content.filename, output_prefix="contents", job_timeout=5000)
 
         # Cloudga trailerni yuklash (agar bor bo'lsa)
         if trailer:
@@ -139,7 +139,7 @@ async def create_content(
             ExtraArgs={'ContentType': trailer.content_type}
         )   
             trailer_folder = f"{R2_PUBLIC_ENDPOINT}/trailers/{trailer.filename}"
-            task_queue.enqueue(convert_and_upload, input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=600)
+            
         
         form = {
             "uploader_id":current_user.id,
@@ -153,8 +153,8 @@ async def create_content(
             "trailer_duration":trailer_duration,
             "type":type,
             "thumbnail":None,
-            "content_url":f"{content_folder}/",
-            "trailer_url":f"{trailer_folder}/" if trailer else None,
+            "original_content":f"{content_folder}",
+            "original_trailer":f"{trailer_folder}" if trailer else None,
             "created_at":datetime.now()
         }
 
@@ -163,6 +163,15 @@ async def create_content(
             form["thumbnail"] = save_thumbnail
 
         created_content = await create(db=db, model=Content, form=form, id=True)
+        
+        if content:
+            task_queue.enqueue(convert_and_upload, 
+                            db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_content,
+                            input_url=content_folder, filename=content.filename, output_prefix="contents", job_timeout=5000)
+        if trailer:
+            task_queue.enqueue(convert_and_upload, 
+                               db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_content,
+                               input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=600)
 
         for genre in get_genre['data']:
             await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
@@ -241,8 +250,6 @@ async def delete_content(id: int, db: AsyncSession = Depends(get_db), current_us
     if not get_content:
         return CustomResponse(status_code=400, detail="Bunday kontent mavjud emas")
     
-    if current_user.role != "admin" and get_content.uploader_id != current_user.id:
-        return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
     await remove(db=db, model=Content, filter_query=(Content.content_id==id))
     return DeletedResponse()

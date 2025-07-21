@@ -2,6 +2,8 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship, foreign
 
 from database import Base
+from .user_history import UserHistory
+from .user_saved import UserSaved
 
 class Episode(Base):
     __tablename__ = "episodes"
@@ -10,7 +12,8 @@ class Episode(Base):
     content_id = Column(Integer, ForeignKey("contents.content_id"))
     seasion = Column(Integer)
     episode = Column(Integer)
-    episode_video = Column(String(255))
+    original_episode = Column(String(255))
+    converted_episode = Column(String(255), nullable=True)
     episode_thumbnail = Column(String(255))
     duration = Column(String(255))
     is_processing = Column(Boolean, default=False)
