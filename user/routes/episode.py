@@ -49,8 +49,22 @@ async def get_episode(episode_id: int, db: AsyncSession = Depends(get_db), curre
     if not getEpisode:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     
-    form = {
-        "episode_id":episode_id
+    previous_episode = await get_one(db=db, model=Episode, filter_query=(
+        (Episode.content_id==getEpisode.content_id) &
+        (Episode.seasion==getEpisode.seasion) &
+        (Episode.episode==getEpisode.episode - 1)
+    )
+        )
+    
+    next_episode = await get_one(db=db, model=Episode, filter_query=(
+        (Episode.content_id==getEpisode.content_id) &
+        (Episode.seasion==getEpisode.seasion) &
+        (Episode.episode==getEpisode.episode + 1)
+    )
+        )
+    
+    return {
+        "episode_data":getEpisode,
+        "previous_episode":previous_episode.id if previous_episode else None,
+        "next_episode": next_episode.id if next_episode else None
     }
-    await change(db=db, model=UserHistory, filter_query=and_(UserHistory.user_id==current_user.id, UserHistory.content_id==getEpisode.content_id), form=form)
-    return getEpisode

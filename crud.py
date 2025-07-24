@@ -55,7 +55,7 @@ async def get_one(db: AsyncSession, model, filter_query, options = None, first: 
     result = await db.execute(query)
     
     if first:
-        return result.unique().first()
+        return result.scalars().first()
     return result.unique().scalar_one_or_none()
     
 async def create(db: AsyncSession, model, form: dict, id: bool = False, flush: bool = False):

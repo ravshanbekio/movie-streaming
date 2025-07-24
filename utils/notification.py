@@ -1,44 +1,59 @@
-
 import logging
-import requests
 from typing import List
 
+import firebase_admin
+from firebase_admin import credentials, messaging
 
-FIREBASE_API_KEY = "AIzaSyD6_ISAVutGMeimRXbXbmM37f7XHpha2w8"
-FCM_URL = "https://fcm.googleapis.com/fcm/send"
+# Initialize Firebase Admin SDK
+cred = credentials.Certificate("firebase.json")  # Ensure this path is correct
+firebase_admin.initialize_app(cred)
 
 def chunk_list(data: List[str], chunk_size: int = 500):
-    """Yield successive chunks of 500 tokens."""
+    """Yield successive chunks of up to 500 tokens."""
     for i in range(0, len(data), chunk_size):
         yield data[i:i + chunk_size]
 
 def send_push_batch(tokens: List[str], title: str, body: str):
-    headers = {
-        "Authorization": f"key={FIREBASE_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "registration_ids": tokens,
-        "notification": {
-            "title": title,
-            "body": body
-        }
-    }
-    response = requests.post(FCM_URL, json=payload, headers=headers)
-    # ✅ Check if response is valid JSON
     try:
-        return response.json()
-    except requests.exceptions.JSONDecodeError:
-        # Log status code and raw response
-        logging.error(f"FCM error: {response.status_code} - {response.text}")
+        message = messaging.MulticastMessage(
+            tokens=tokens,
+            notification=messaging.Notification(
+                title=title,
+                body=body
+            )
+        )
+
+        response = messaging.send_each_for_multicast(message)
+
+        failed = []
+        for i, resp in enumerate(response.responses):
+            if not resp.success:
+                failed.append({
+                    "token": tokens[i],
+                    "error": str(resp.exception)
+                })
+
+        return {
+            "success_count": response.success_count,
+            "failure_count": response.failure_count,
+            "failed": failed
+        }
+
+    except Exception as e:
+        logging.error(f"Firebase batch send error: {e}")
         return {
             "status": "error",
-            "code": response.status_code,
-            "message": response.text
+            "error": str(e)
+        }
+    except Exception as e:
+        logging.error(f"Firebase batch send error: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
         }
 
 def send_to_all_users(all_tokens: List[str], title: str, body: str):
+    """Send push notifications to all users in batches of 500."""
     results = []
     for batch in chunk_list(all_tokens, 500):
         result = send_push_batch(batch, title, body)

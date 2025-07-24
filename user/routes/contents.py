@@ -39,7 +39,7 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
     if content_type:
         filters.append(Content.type==content_type)
     
-    if genre_ids:   
+    if genre_ids:
         for genre_id in genre_ids:
             genre = await get_one(db=db, model=Genre, filter_query=(Genre.genre_id==genre_id))
             if not genre:
@@ -65,4 +65,11 @@ async def get_content_by_id(content_id: int, db: AsyncSession = Depends(get_db),
     if not content:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     
-    return content
+    previous_content = await get_one(db=db, model=Content, filter_query=(Content.content_id < content.content_id), first=True)
+    next_content = await get_one(db=db, model=Content, filter_query=(Content.content_id > content.content_id), first=True)
+    
+    return {
+        "content":content,
+        "previous_content":previous_content.content_id if previous_content else None,
+        "next_content": next_content.content_id if next_content else None
+    }
