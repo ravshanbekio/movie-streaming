@@ -29,6 +29,8 @@ from models.content import Content
 from models.episode import Episode
 from models.fcm_token import FCMToken
 from models.notification import Notification
+from models.promocode import Promocode
+from models.order import Order
 
 target_metadata = Base.metadata
 
