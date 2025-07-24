@@ -6,11 +6,12 @@ from routes.auth import auth_router
 from routes.user import user_router
 from routes.fcm_token import fcm_token_router
 from routes.invoice import invoice_router
-
+# Admin Side
 from admin.routes.admin import admin_router
 from admin.routes.genre import genre_router
 from admin.routes.content import content_router
 from admin.routes.episodes import episode_router
+from admin.routes.promocode import promocode_router
 
 #User side
 from user.routes.contents import content_router as user_content_router
@@ -40,6 +41,7 @@ app.include_router(admin_router)
 app.include_router(genre_router)
 app.include_router(content_router)
 app.include_router(episode_router)
+app.include_router(promocode_router)
 # Filial
 app.include_router(user_content_router)
 app.include_router(user_episode_router)
