@@ -43,14 +43,18 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
     checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=(Order.user_id==current_user.id))
     if checkUsernotInOrders:
         return CustomResponse(status_code=400, detail="Obuna allaqachon rasmiylashtirilgan!")
+    
+    if form.month not in [1, 3, 6, 12]:
+        return CustomResponse(status_code=400, detail="Noto'g'ri obuna sanasi kiritildi")
 
-    amount = 0 if promocode is not None else checkPlanExists.price
+    amount = 0 if promocode is not None else checkPlanExists.price * form.month
     payload = {
         "user_id":current_user.id,
         "promocode_id":promocode,
         "amount":amount,
         "created_at":datetime.now(),
-        "next_payment_date": datetime.today.date() + timedelta(days=30)
+        "next_payment_date": datetime.today().date() + timedelta(days=30),
+        "subscription_date":form.month
     }
     order = await create(db=db, model=Order, form=payload, id=True)
     

@@ -51,4 +51,5 @@ class GetStatementParams(BaseModel):
 
 class CreateOrderForm(BaseModel):
     plan_id: int
+    month: int
     promocode: Optional[str]
