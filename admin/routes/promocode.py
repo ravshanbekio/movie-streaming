@@ -24,8 +24,8 @@ async def create_promocode(form: CreatePromocodeForm, db: AsyncSession = Depends
     if checkPromocodeNameExists:
         return CustomResponse(status_code=400, detail="Ushbu nom ostida promokod mavjud")
     
-    if form.validity_period < 0:
-        return CustomResponse(status_code=400, detail="Noto'g'ri vaqt kiritildi")
+    # if form.validity_period < :
+    #     return CustomResponse(status_code=400, detail="Noto'g'ri vaqt kiritildi")
     
     payload = {
         "name":form.name,
@@ -46,8 +46,8 @@ async def update_promocode(form: UpdatePromocodeForm, db: AsyncSession = Depends
     if checkPromocodeNameExists:
         return CustomResponse(status_code=400, detail="Ushbu nom ostida promokod mavjud")
     
-    if form.validity_period < 0:
-        return CustomResponse(status_code=400, detail="Noto'g'ri vaqt kiritildi")
+    # if form.validity_period < 0:
+    #     return CustomResponse(status_code=400, detail="Noto'g'ri vaqt kiritildi")
     
     await change(db=db, model=Promocode, filter_query=(Promocode.id==form.id), form=form.model_dump())
     return UpdatedResponse()

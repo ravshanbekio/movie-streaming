@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, BigInteger, Integer, String, Date, DateTime, ForeignKey
 
 from database import Base
 
@@ -10,4 +10,5 @@ class Order(Base):
     promocode_id = Column(Integer, ForeignKey("promocodes.id"), nullable=True)
     amount = Column(BigInteger)
     created_at = Column(DateTime)
+    next_payment_date = Column(Date)
     status = Column(String(255), default="free")

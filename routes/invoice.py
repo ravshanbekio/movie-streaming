@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 # Payment integrations
 from paytechuz.gateways.payme import PaymeGateway
@@ -49,7 +49,8 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         "user_id":current_user.id,
         "promocode_id":promocode,
         "amount":amount,
-        "created_at":datetime.now()
+        "created_at":datetime.now(),
+        "next_payment_date": datetime.today.date() + timedelta(days=30)
     }
     order = await create(db=db, model=Order, form=payload, id=True)
     

@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from datetime import date
 from enum import Enum
 
 class PromocodeStatus(str, Enum):
@@ -9,17 +10,17 @@ class PromocodeStatus(str, Enum):
 class PromocodeResponse(BaseModel):
     id: int
     name: str
-    validity_period: int
-    limit: int
+    validity_period: date
+    limit: int  
     status: PromocodeStatus
     
 class CreatePromocodeForm(BaseModel):
     name: str
-    validity_period: int
+    validity_period: date
     limit: int
     
 class UpdatePromocodeForm(BaseModel):
     id: int
     name: str
-    validity_period: int
+    validity_period: date
     limit: int   
