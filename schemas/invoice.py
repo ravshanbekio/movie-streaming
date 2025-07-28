@@ -8,7 +8,7 @@ class PaymeRequest(BaseModel):
     id: Optional[int]
     method: Literal[
         "CheckPerformTransaction", "CreateTransaction", "PerformTransaction",
-        "CancelTransaction", "CheckTransaction", "GetStatement"
+        "CancelTransaction", "CheckTransaction", "GetStatement", "ChangePassword"
     ]
     params: Dict[str, Any]  # Raw, will be parsed based on `method`
 
@@ -48,6 +48,9 @@ class CheckTransactionParams(BaseModel):
 class GetStatementParams(BaseModel):
     from_: int = Field(..., alias="from")
     to: int
+    
+class ChangePasswordParams(BaseModel):
+    password: str
 
 class CreateOrderForm(BaseModel):
     plan_id: int

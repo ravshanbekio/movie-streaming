@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime, func
+from sqlalchemy import Column, Integer ,BigInteger, String, DateTime, CheckConstraint
 
 from database import Base
 
@@ -12,8 +12,12 @@ class Payment(Base):
     amount = Column(BigInteger, nullable=True)
     extra_data = Column(String(400))
     state = Column(Integer)
-    reason = Column(String(100))
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now())
-    performed_at = Column(DateTime, server_default=func.now())
-    cancelled_at = Column(DateTime, server_default=func.now())
+    reason = Column(Integer, nullable=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    performed_at = Column(DateTime, default=0)
+    cancelled_at = Column(DateTime, default=0)
+    
+    __table_args__ = (
+        CheckConstraint('state > 0', name='check_state'),
+    )

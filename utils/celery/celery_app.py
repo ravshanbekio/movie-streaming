@@ -15,7 +15,7 @@ celery.conf.beat_schedule = {
     "update-free-payment-date":{
         "task":"utils.celery.tasks.updateFreePaymentDate",
         "schedule":86400.0,
-    }
+    },
     "chage-auto-payment": {
         "task": "utils.celery.tasks.chargeAutopayment",
         "schedule":86400.0,
