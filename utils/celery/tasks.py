@@ -1,5 +1,5 @@
 from .celery_app import celery
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 from database import SessionLocal
 from models.promocode import Promocode
@@ -9,7 +9,7 @@ from admin.schemas.promocode import PromocodeStatus
 @celery.task
 def check_expired_items():
     db = SessionLocal()
-    today = date.today().date()
+    today = datetime.today().date()
     promocodes = db.query(Promocode).filter(Promocode.validity_period <= today, Promocode.status!=PromocodeStatus.INACTIVE).all()
         
     for promocode in promocode:
@@ -26,7 +26,7 @@ def check_expired_items():
 @celery.task()
 def updateFreePaymentDate():
     db = SessionLocal()
-    today = date.today().date()
+    today = datetime.today().date()
     next_payment_date = today + timedelta(days=30)
     
     orders = db.query(Order).filter(Order.status=="free", Order.next_payment_date==today).all()
@@ -41,7 +41,7 @@ def updateFreePaymentDate():
 @celery.task()
 def chargeAutopayment():
     db = SessionLocal()
-    today = date.today().date()
+    today = datetime.today().date()
     next_payment_date = today + timedelta(days=30)
     
     orders = db.query(Order).filter(Order.status=="paid", Order.next_payment_date==today).all()
