@@ -54,7 +54,8 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         "amount":amount,
         "created_at":datetime.now(),
         "next_payment_date": datetime.today().date() + timedelta(days=30),
-        "subscription_date":form.month
+        "subscription_date":form.month,
+        "subcription_end_date":datetime.today.date() + timedelta(months=form.month)
     }
     order = await create(db=db, model=Order, form=payload, id=True)
     

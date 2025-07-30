@@ -12,4 +12,5 @@ class Order(Base):
     created_at = Column(DateTime)
     next_payment_date = Column(Date)
     subscription_date = Column(Integer)
+    subcription_end_date = Column(Date)
     status = Column(String(255), default="free")

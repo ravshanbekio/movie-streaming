@@ -4,6 +4,7 @@ from datetime import date, timedelta, datetime
 from database import SessionLocal
 from models.promocode import Promocode
 from models.order import Order
+from models.user import User
 from admin.schemas.promocode import PromocodeStatus
 
 @celery.task
@@ -12,7 +13,7 @@ def check_expired_items():
     today = datetime.today().date()
     promocodes = db.query(Promocode).filter(Promocode.validity_period <= today, Promocode.status!=PromocodeStatus.INACTIVE).all()
         
-    for promocode in promocode:
+    for promocode in promocodes:
         db.query(Promocode).filter(Promocode.id==promocode.id).update({
             "status":PromocodeStatus.INACTIVE
         })
@@ -37,6 +38,23 @@ def updateFreePaymentDate():
         })
         db.commit()        
     print("Free order's updated")
+    
+@celery.task()
+def updateExpiredOrders():
+    db = SessionLocal()
+    today = datetime.today().date()
+    
+    orders = db.query(Orders).filter(Orders.subcription_end_date < today).all()
+    for order in orders:
+        db.query(User).filter(User.id==order.user_id).update({
+            "subscribed":False
+        })   
+        db.commit()
+        
+        db.query(Orders).filter(Orders.id==order.id).delete()
+        db.commit()
+        
+    print("Deleted expired orders.")
 
 @celery.task()
 def chargeAutopayment():

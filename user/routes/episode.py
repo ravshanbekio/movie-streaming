@@ -19,7 +19,10 @@ episode_router = APIRouter(tags=["User Episode"], prefix="/user")
 
 @episode_router.get("/episodes/all")
 async def get_episodes(content_id: int, page: int = 1, limit: int = 25, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==content_id, Content.converted_content.isnot(None)), options=[joinedload(Content.episodes)])
+    if current_user.subscribed == False:
+        content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==content_id, Content.converted_content.isnot(None), Content.subscription_status==False), options=[joinedload(Content.episodes)])
+    else:
+        content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==content_id, Content.converted_content.isnot(None)), options=[joinedload(Content.episodes)])
     if not content:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot topilmadi")
     

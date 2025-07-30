@@ -19,6 +19,10 @@ celery.conf.beat_schedule = {
     "chage-auto-payment": {
         "task": "utils.celery.tasks.chargeAutopayment",
         "schedule":86400.0,
+    },
+    "update-expired-orders":{
+        "task":"utils.celery.tasks.check_expired_items",
+        "schedule":86400.0,
     }
 }
 celery.conf.timezone = 'UTC'
