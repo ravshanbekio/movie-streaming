@@ -4,9 +4,11 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 # Payment integrations
 from paytechuz.gateways.payme import PaymeGateway
+from paytechuz.gateways.click import ClickGateway
 from integrations.payme.webhook import CustomPaymeWebhookHandler
 
 from database import get_db, get_sync_db
@@ -16,16 +18,23 @@ from models.order import Order
 from models.plans import Plan
 from models.promocode import Promocode
 from admin.schemas.promocode import PromocodeStatus
-from schemas.invoice import PaymeRequest, CreateOrderForm
+from schemas.invoice import PaymeRequest, CreateOrderForm, ClickRequest
 from utils.auth import get_current_active_user
 from utils.exceptions import CreatedResponse, CustomResponse
 
 load_dotenv()
 
 invoice_router = APIRouter(tags=["Invoice"])
+# Payme credentials
 MERCHANT_ID = os.getenv("MERCHANT_ID")
 PAYME_KEY = os.getenv("PAYME_KEY")
 PAYME_TEST_KEY = os.getenv("PAYME_TEST_KEY")
+# Click credentials
+CLICK_MERCHANT_ID = os.getenv("CLICK_MERCHANT_ID")
+CLICK_MERCHANT_USER_ID = os.getenv("CLICK_MERCHANT_USER_ID")
+CLICK_SERVICE_ID = os.getenv("CLICK_SERVICE_ID")
+SECRET_KEY = os.getenv("SECRET_KEY")
+
 
 @invoice_router.post("/create_order")
 async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
@@ -55,7 +64,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         "created_at":datetime.now(),
         "next_payment_date": datetime.today().date() + timedelta(days=30),
         "subscription_date":form.month,
-        "subcription_end_date":datetime.today.date() + timedelta(months=form.month)
+        "subcription_end_date":datetime.today().date() + relativedelta(months=form.month)
     }
     order = await create(db=db, model=Order, form=payload, id=True)
     
@@ -68,20 +77,36 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         if refreshedPromocode.limit == 0:
             updatePromocodeStatus = await change(db=db, model=Promocode, filter_query=(Promocode.id==promocode), form={"status":PromocodeStatus.OVER})
             
-    payme = PaymeGateway(
-        payme_id=MERCHANT_ID,
-        payme_key=PAYME_KEY,
-        is_test_mode=False
-    )
-    payme_link = payme.create_payment(
-        id=order,
-        amount=amount,
-        return_url="https://google.com"
-    )
+    link = None
+    if form.method == "payme":
+        payme = PaymeGateway(
+            payme_id=MERCHANT_ID,
+            payme_key=PAYME_KEY,
+            is_test_mode=False
+        )
+        link = payme.create_payment(
+            id=order,
+            amount=amount,
+            return_url="https://google.com"
+        )
+    elif form.method == "click":
+        click = ClickGateway(
+            service_id=CLICK_SERVICE_ID,
+            merchant_id=CLICK_MERCHANT_ID,
+            merchant_user_id=CLICK_MERCHANT_USER_ID,
+            secret_key=SECRET_KEY,
+            is_test_mode=False
+        )
+        click_data = click.create_payment(
+            id=order,
+            amount=amount,
+            return_url="https://google.com/",
+        )
+        link = click_data['payment_url']
 
     return {
         "total_price":amount,
-        "payme_link":payme_link
+        "link":link
     }
 
 @invoice_router.post("/create_invoice")
@@ -93,5 +118,16 @@ async def create_invoice(request: Request, form: PaymeRequest, db: Session = Dep
         account_model=Order,
         account_field="order_id",
         amount_field="amount"
+    )
+    return await handler.handle_webhook(request)
+
+@invoice_router.post("/click/create_invoice")
+async def create_click_invoice(request: Request, form: ClickRequest, db: Session = Depends(get_sync_db)):
+    handler = CustomClickWebhookHandler(
+        db=db,
+        service_id=CLICK_SERVICE_ID,
+        merchant_id=CLICK_MERCHANT_ID,
+        secret_key=SECRET_KEY,
+        account_model=Order
     )
     return await handler.handle_webhook(request)

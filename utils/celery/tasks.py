@@ -12,7 +12,7 @@ def check_expired_items():
     db = SessionLocal()
     today = datetime.today().date()
     promocodes = db.query(Promocode).filter(Promocode.validity_period <= today, Promocode.status!=PromocodeStatus.INACTIVE).all()
-        
+    
     for promocode in promocodes:
         db.query(Promocode).filter(Promocode.id==promocode.id).update({
             "status":PromocodeStatus.INACTIVE

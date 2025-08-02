@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Dict, Any
+from enum import Enum
 
 # Unified request structure
 class PaymeRequest(BaseModel):
@@ -51,8 +52,18 @@ class GetStatementParams(BaseModel):
     
 class ChangePasswordParams(BaseModel):
     password: str
+    
+# Click request
+class ClickRequest(BaseModel):
+    order_id: int
+    amount: int
+    
+class PaymentMethods(str, Enum):
+    PAYME = 'payme'
+    CLICK = 'click'
 
 class CreateOrderForm(BaseModel):
     plan_id: int
     month: int
     promocode: Optional[str]
+    method: PaymentMethods
