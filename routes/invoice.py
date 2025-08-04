@@ -17,6 +17,7 @@ from models.user import User
 from models.order import Order
 from models.plans import Plan
 from models.promocode import Promocode
+from models.payment_token import PaymentToken
 from admin.schemas.promocode import PromocodeStatus
 from schemas.invoice import PaymeRequest, CreateOrderForm, ClickRequest
 from utils.auth import get_current_active_user
@@ -34,6 +35,24 @@ CLICK_MERCHANT_ID = os.getenv("CLICK_MERCHANT_ID")
 CLICK_MERCHANT_USER_ID = os.getenv("CLICK_MERCHANT_USER_ID")
 CLICK_SERVICE_ID = os.getenv("CLICK_SERVICE_ID")
 SECRET_KEY = os.getenv("SECRET_KEY")
+
+@invoice_router.get("/click/token_callback")
+async def click_token_callback(request: Request, db: Session = Depends(get_db)):
+    data = await request.json()
+
+    if data.get("status") == "success":
+        user_id = int(data["merchant_user_id"])
+        card_token = data["card_token"]
+
+        existing = db.query(PaymentToken).filter_by(user_id=user_id).first()
+        if existing:
+            existing.token = card_token
+        else:
+            db.add(ClickToken(user_id=user_id, token=card_token))
+        db.commit()
+        return {"status": "ok"}
+    
+    return {"status": "failed"}
 
 
 @invoice_router.post("/create_order")
@@ -87,7 +106,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         link = payme.create_payment(
             id=order,
             amount=amount,
-            return_url="https://google.com"
+            return_url="http://161.97.113.186/click/token_callback"
         )
     elif form.method == "click":
         click = ClickGateway(
@@ -100,7 +119,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         click_data = click.create_payment(
             id=order,
             amount=amount,
-            return_url="https://google.com/",
+            return_url="http://161.97.113.186/click/token_callback",
         )
         link = click_data['payment_url']
 

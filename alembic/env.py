@@ -33,6 +33,7 @@ from models.promocode import Promocode
 from models.order import Order
 from models.payments import Payment
 from models.plans import Plan
+from models.payment_token import PaymentToken
 
 target_metadata = Base.metadata
 
