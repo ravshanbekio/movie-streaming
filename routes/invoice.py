@@ -114,7 +114,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             merchant_id=CLICK_MERCHANT_ID,
             merchant_user_id=CLICK_MERCHANT_USER_ID,
             secret_key=SECRET_KEY,
-            is_test_mode=False
+            is_test_mode=True
         )
         click_data = click.create_payment(
             id=order,

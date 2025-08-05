@@ -19,6 +19,7 @@ from user.routes.contents import content_router as user_content_router
 from user.routes.episode import episode_router as user_episode_router
 from user.routes.watch_history import watch_history_router
 from user.routes.user_saved import saved_router as user_saved_router
+from user.routes.plans import plan_router as user_plan_router
 
 app = FastAPI()
 
@@ -44,8 +45,9 @@ app.include_router(content_router)
 app.include_router(episode_router)
 app.include_router(promocode_router)
 app.include_router(plan_router)
-# Filial
+# User
 app.include_router(user_content_router)
 app.include_router(user_episode_router)
 app.include_router(watch_history_router)
 app.include_router(user_saved_router)
+app.include_router(user_plan_router)
