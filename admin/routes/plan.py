@@ -24,9 +24,9 @@ async def create_plan(form: CreatePlanForm, db: AsyncSession = Depends(get_db), 
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar mavjud emas")
     
-    checkPlanTitleExists = await get_one(db=db, model=Plan, filter_query=(Plan.title==form.title))
-    if checkPlanTitleExists:
-        return CustomResponse(status_code=400, detail="Bunday nomdagi obuna turi allaqachon mavjud")
+    checkPlanMonthExists = await get_one(db=db, model=Plan, filter_query=(Plan.month==form.month))
+    if checkPlanMonthExists:
+        return CustomResponse(status_code=400, detail="Bunday obuna turi allaqachon mavjud")
     
     await create(db=db, model=Plan, form=form.model_dump())
     return CreatedResponse()

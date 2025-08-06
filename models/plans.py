@@ -6,6 +6,5 @@ class Plan(Base):
     __tablename__ = "plans"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(255))
-    description = Column(Text)
+    month = Column(Integer)
     price = Column(Float)
