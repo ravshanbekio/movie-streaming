@@ -9,7 +9,15 @@ from dotenv import load_dotenv
 # Payment integrations
 from paytechuz.gateways.payme import PaymeGateway
 from paytechuz.gateways.click import ClickGateway
+
+import os
+import sys
+
+# Add the project root (where main.py is) to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from integrations.payme.webhook import CustomPaymeWebhookHandler
+from integrations.click.webhook import CustomClickWebhookHandler
 
 from database import get_db, get_sync_db
 from crud import get_all, get_one, create, change, delete
@@ -38,21 +46,21 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 
 @invoice_router.get("/click/token_callback")
 async def click_token_callback(request: Request, db: Session = Depends(get_db)):
-    data = await request.json()
+    data = await request.body()
 
-    if data.get("status") == "success":
-        user_id = int(data["merchant_user_id"])
-        card_token = data["card_token"]
+    # if data.get("status") == "success":
+    #     user_id = int(data["merchant_user_id"])
+    #     card_token = data["card_token"]
 
-        existing = db.query(PaymentToken).filter_by(user_id=user_id).first()
-        if existing:
-            existing.token = card_token
-        else:
-            db.add(ClickToken(user_id=user_id, token=card_token))
-        db.commit()
-        return {"status": "ok"}
+    #     existing = db.query(PaymentToken).filter_by(user_id=user_id).first()
+    #     if existing:
+    #         existing.token = card_token
+    #     else:
+    #         db.add(ClickToken(user_id=user_id, token=card_token))
+    #     db.commit()
+    #     return {"status": "ok"}
     
-    return {"status": "failed"}
+    return {"status": data}
 
 
 @invoice_router.post("/create_order")
@@ -79,8 +87,8 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         "amount":amount,
         "created_at":datetime.now(),
         "next_payment_date": datetime.today().date() + timedelta(days=30),
-        "subscription_date":form.month,
-        "subcription_end_date":datetime.today().date() + relativedelta(months=form.month)
+        "subscription_date":checkPlanExists.month,
+        "subcription_end_date":datetime.today().date() + relativedelta(months=checkPlanExists.month)
     }
     order = await create(db=db, model=Order, form=payload, id=True)
     
@@ -111,7 +119,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             merchant_id=CLICK_MERCHANT_ID,
             merchant_user_id=CLICK_MERCHANT_USER_ID,
             secret_key=SECRET_KEY,
-            is_test_mode=True
+            is_test_mode=False
         )
         click_data = click.create_payment(
             id=order,
@@ -138,11 +146,10 @@ async def create_invoice(request: Request, form: PaymeRequest, db: Session = Dep
     return await handler.handle_webhook(request)
 
 @invoice_router.post("/click/create_invoice")
-async def create_click_invoice(request: Request, form: ClickRequest, db: Session = Depends(get_sync_db)):
+async def create_click_invoice(request: Request, db: Session = Depends(get_sync_db)):
     handler = CustomClickWebhookHandler(
         db=db,
         service_id=CLICK_SERVICE_ID,
-        merchant_id=CLICK_MERCHANT_ID,
         secret_key=SECRET_KEY,
         account_model=Order
     )

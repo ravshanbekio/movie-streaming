@@ -1,4 +1,4 @@
-from paytechuz.integrations.fastapi import PaymeWebhookHandler, ClickWebhookHandler
+from paytechuz.integrations.fastapi import ClickWebhookHandler
 from models.order import Order
 from models.user import User
 

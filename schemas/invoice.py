@@ -64,6 +64,5 @@ class PaymentMethods(str, Enum):
 
 class CreateOrderForm(BaseModel):
     plan_id: int
-    month: int
     promocode: Optional[str]
     method: PaymentMethods
