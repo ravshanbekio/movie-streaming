@@ -1,8 +1,9 @@
 # schemas/payme.py
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Literal, Dict, Any
 from enum import Enum
+from datetime import date
 
 # Unified request structure
 class PaymeRequest(BaseModel):
@@ -61,6 +62,10 @@ class ClickRequest(BaseModel):
 class PaymentMethods(str, Enum):
     PAYME = 'payme'
     CLICK = 'click'
+    
+class OrderResponse(BaseModel):
+    id: int
+    subcription_end_date: Optional[date]
 
 class CreateOrderForm(BaseModel):
     plan_id: int

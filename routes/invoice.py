@@ -76,7 +76,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
     if not checkPlanExists:
         return CustomResponse(status_code=400, detail="Bunday plan mavjud emas")
     
-    checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=(Order.user_id==current_user.id))
+    checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
     if checkUsernotInOrders:
         return CustomResponse(status_code=400, detail="Obuna allaqachon rasmiylashtirilgan!")
 

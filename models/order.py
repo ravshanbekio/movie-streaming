@@ -1,5 +1,5 @@
 from sqlalchemy import Column, BigInteger, Integer, String, Date, DateTime, ForeignKey
-
+from sqlalchemy.orm import relationship, backref
 from database import Base
 
 class Order(Base):
@@ -14,3 +14,5 @@ class Order(Base):
     subscription_date = Column(Integer)
     subcription_end_date = Column(Date)
     status = Column(String(255), default="free")
+    
+    user = relationship("User", back_populates="order")

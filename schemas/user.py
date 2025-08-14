@@ -1,10 +1,12 @@
 from pydantic import BaseModel
 from typing import Optional
+from .invoice import OrderResponse
 
 class Token(BaseModel):
     access_token: str
     token_type: str
     role: str
+    order: Optional[OrderResponse]
 
 class TokenData(BaseModel):
     phone_number: str

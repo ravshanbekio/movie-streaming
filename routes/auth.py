@@ -1,10 +1,14 @@
 from fastapi import Depends, APIRouter, HTTPException, status
+from typing import Optional
 from sqlalchemy import select, update, insert
+from sqlalchemy.orm import joinedload, with_loader_criteria
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models.user import User
 from models.user_token import UserToken
+from models.order import Order
 from schemas.user import Token, UserAuthForm
+from schemas.invoice import OrderResponse
 from datetime import timedelta, datetime
 
 from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_DAYS
@@ -12,9 +16,10 @@ from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_DAY
 auth_router = APIRouter(tags=["Token"])
 
 
-@auth_router.post("/token", response_model=Token)
+@auth_router.post("/token")
 async def token(form_data: UserAuthForm, db: AsyncSession = Depends(get_db)):
-    query = await db.execute(select(User).where(User.phone_number == form_data.phone_number, User.status == "active"))
+    query = await db.execute(select(User).where(User.phone_number == form_data.phone_number, User.status == "active").options(
+        joinedload(User.order).load_only(Order.id, Order.subcription_end_date), with_loader_criteria(Order, Order.status=="paid")))
     user = query.scalars().first()
     if user:
         is_validate_password = pwd_context.verify(form_data.password, user.password)
@@ -36,11 +41,20 @@ async def token(form_data: UserAuthForm, db: AsyncSession = Depends(get_db)):
         UserToken.created_at: datetime.now()
     }))
     await db.commit()
+    order_data = None
+
+    if user and user.order:
+        order_data = OrderResponse.model_validate({
+            "id": user.order.id,
+            "subcription_end_date": user.order.subcription_end_date
+        })
+        
     return {
-            "access_token": access_token, 
-            "token_type": "bearer",
-            "role":user.role
-        }
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "role":user.role if user.role else None,
+        "order": order_data
+    }
     
     
 @auth_router.post("/refresh_token", response_model=Token)

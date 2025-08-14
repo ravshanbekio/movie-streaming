@@ -19,3 +19,4 @@ class User(Base):
     joined_at = Column(DateTime)
     
     user_token = relationship("UserToken", back_populates="user_data")
+    order = relationship("Order", uselist=False, back_populates="user")
