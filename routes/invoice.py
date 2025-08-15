@@ -27,7 +27,7 @@ from models.plans import Plan
 from models.promocode import Promocode
 from models.payment_token import PaymentToken
 from admin.schemas.promocode import PromocodeStatus
-from schemas.invoice import PaymeRequest, CreateOrderForm, ClickRequest
+from schemas.invoice import PaymeRequest, CreateOrderForm, ClickRequest, SubscriptionType
 from utils.auth import get_current_active_user
 from utils.exceptions import CreatedResponse, CustomResponse
 
@@ -76,30 +76,43 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
     if not checkPlanExists:
         return CustomResponse(status_code=400, detail="Bunday plan mavjud emas")
     
-    checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
-    if checkUsernotInOrders:
-        return CustomResponse(status_code=400, detail="Obuna allaqachon rasmiylashtirilgan!")
+    if form.type == SubscriptionType.BUY:
+        checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
+        if checkUsernotInOrders:
+            return CustomResponse(status_code=400, detail="Obuna allaqachon rasmiylashtirilgan!")
 
-    amount = 0 if promocode is not None else checkPlanExists.price
-    payload = {
-        "user_id":current_user.id,
-        "promocode_id":promocode,
-        "amount":amount,
-        "created_at":datetime.now(),
-        "next_payment_date": datetime.today().date() + timedelta(days=30),
-        "subscription_date":checkPlanExists.month,
-        "subcription_end_date":datetime.today().date() + relativedelta(months=checkPlanExists.month)
-    }
-    order = await create(db=db, model=Order, form=payload, id=True)
+        amount = 0 if promocode is not None else checkPlanExists.price
+        payload = {
+            "user_id":current_user.id,
+            "promocode_id":promocode,
+            "amount":amount,
+            "created_at":datetime.now(),
+            "next_payment_date": datetime.today().date() + timedelta(days=30),
+            "subscription_date":checkPlanExists.month,
+            "subcription_end_date":datetime.today().date() + relativedelta(months=checkPlanExists.month)
+        }
+        order = await create(db=db, model=Order, form=payload, id=True)
+        
+    elif form.type == SubscriptionType.UPDATE:
+        checkUserInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
+        if not checkUserInOrders:
+            return CustomResponse(status_code=400, detail="Bunday obuna mavjud emas")
+        
+        UpdateSubscriptionDate = checkUserInOrders.subcription_end_date + relativedelta(months=checkPlanExists.month)
+        payload = {
+            "amount":checkPlanExists.price,
+            "subcription_end_date": UpdateSubscriptionDate
+        }
+        await change(db=db, model=Order, filter_query=(Order.user_id==current_user.id, Order.status=="paid"), form=payload)
     
     if promocode is not None:
         promocode_payload = {
             "limit": checkPromocodeExists.limit - 1
         }
-        updatePromocodeLimit = await change(db=db, model=Promocode, filter_query=(Promocode.id==promocode), form=promocode_payload)
+        await change(db=db, model=Promocode, filter_query=(Promocode.id==promocode), form=promocode_payload)
         refreshedPromocode = await get_one(db=db, model=Promocode, filter_query=(Promocode.id==promocode))
         if refreshedPromocode.limit == 0:
-            updatePromocodeStatus = await change(db=db, model=Promocode, filter_query=(Promocode.id==promocode), form={"status":PromocodeStatus.OVER})
+            await change(db=db, model=Promocode, filter_query=(Promocode.id==promocode), form={"status":PromocodeStatus.OVER})
             
     link = None
     if form.method == "payme":

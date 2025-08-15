@@ -66,8 +66,13 @@ class PaymentMethods(str, Enum):
 class OrderResponse(BaseModel):
     id: int
     subcription_end_date: Optional[date]
+    
+class SubscriptionType(str, Enum):
+    BUY = "buy"
+    UPDATE = "update"
 
 class CreateOrderForm(BaseModel):
     plan_id: int
     promocode: Optional[str]
     method: PaymentMethods
+    type: SubscriptionType
