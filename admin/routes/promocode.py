@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 from database import get_db
 from crud import create, change, get_all, get_one, remove
@@ -24,6 +26,11 @@ async def create_promocode(form: CreatePromocodeForm, db: AsyncSession = Depends
     if checkPromocodeNameExists:
         return CustomResponse(status_code=400, detail="Ushbu nom ostida promokod mavjud")
     
+    promocode_month = datetime.today().date() + relativedelta(months=form.month)
+    
+    if form.validity_period < promocode_month:
+        return CustomResponse(status_code=400, detail="Promokod amal qilish sanasi kiritilgan oydan kichik")
+    
     # if form.validity_period < :
     #     return CustomResponse(status_code=400, detail="Noto'g'ri vaqt kiritildi")
     
@@ -45,6 +52,11 @@ async def update_promocode(form: UpdatePromocodeForm, db: AsyncSession = Depends
     checkPromocodeNameExists = await get_one(db=db, model=Promocode, filter_query=and_(Promocode.name==form.name, Promocode.id!=form.id))
     if checkPromocodeNameExists:
         return CustomResponse(status_code=400, detail="Ushbu nom ostida promokod mavjud")
+    
+    promocode_month = datetime.today().date() + relativedelta(months=form.month)
+    
+    if form.validity_period < promocode_month:
+        return CustomResponse(status_code=400, detail="Promokod amal qilish sanasi kiritilgan oydan kichik")
     
     # if form.validity_period < 0:
     #     return CustomResponse(status_code=400, detail="Noto'g'ri vaqt kiritildi")

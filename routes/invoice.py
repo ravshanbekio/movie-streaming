@@ -83,8 +83,8 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             "promocode_id":checkPromocodeExists.id,
             "amount":0,
             "created_at":datetime.now(),
-            "next_payment_date":datetime.today().date() + (relativedelta(months=checkPlanExists.month) + relativedelta(days=30)),
-            "subscription_date":checkPlanExists.month,
+            "next_payment_date":datetime.today().date() + (relativedelta(months=checkPromocodeExists.month) + relativedelta(days=30)),
+            "subscription_date":checkPromocodeExists,
             "subcription_end_date": datetime.today().date() + relativedelta(months=checkPlanExists.month),
             "status":"paid"
         }

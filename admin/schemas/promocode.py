@@ -17,10 +17,12 @@ class PromocodeResponse(BaseModel):
 class CreatePromocodeForm(BaseModel):
     name: str
     validity_period: date
+    month: int
     limit: int
     
 class UpdatePromocodeForm(BaseModel):
     id: int
     name: str
     validity_period: date
+    month: int
     limit: int   
