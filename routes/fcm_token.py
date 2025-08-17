@@ -41,7 +41,7 @@ async def broadcast(form: BroadcastForm, db: AsyncSession = Depends(get_db), cur
     get_all_tokens = await get_all(db=db, model=FCMToken, page=1, limit=500)
     token_list = [t.token for t in get_all_tokens['data']]
     results = send_to_all_users(token_list, form.title, form.body)
-    
+    return results
     payload = {
         "title":form.title,
         "body":form.body,

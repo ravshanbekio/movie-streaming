@@ -1,17 +1,16 @@
 from fastapi import APIRouter, Depends
-from fastapi.responses import ORJSONResponse
 from sqlalchemy import and_
+from sqlalchemy.orm import joinedload, with_loader_criteria
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
 
-from crud import get_all, get_one, create, change, remove
+from crud import get_all, get_one, remove
 from database import get_db
 from models.user import User
-from schemas.user import UserAuthForm, UserResponse, UserCreateForm, UserUpdateForm
+from models.order import Order
+from schemas.user import UserResponse
 from admin.schemas.user import AdminRole
-from utils.auth import get_password_hash, get_current_active_user
-from utils.exceptions import CreatedResponse, UpdatedResponse, CustomResponse, DeletedResponse
-from utils.auth import pwd_context, create_access_token, ACCESS_TOKEN_EXPIRE_DAYS
+from utils.auth import get_current_active_user
+from utils.exceptions import CustomResponse, DeletedResponse
 from utils.pagination import Page
 
 admin_router = APIRouter(tags=["Admin"])
@@ -27,7 +26,7 @@ async def get_all_users(role: str = None, page: int = 1, limit: int = 25, \
 
 @admin_router.get("/admin/profile")
 async def get_current_user_data(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
-    return await get_one(db=db, model=User, filter_query=(User.id==current_user.id))
+    return await get_one(db=db, model=User, filter_query=(User.id==current_user.id), options=[joinedload(User.order), with_loader_criteria(Order, Order.status=="paid")])
 
 
 # @admin_router.get("/users/{phone_number}", summary="Foydalanuvchi haqida ma'lumot olish")

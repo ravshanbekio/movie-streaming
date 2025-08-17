@@ -40,5 +40,5 @@ async def delete_plan(plan_id: int, db: AsyncSession = Depends(get_db), current_
     if not checkPlanExists:
         return CustomResponse(status_code=400, detail="Bunday obuna turi mavjud emas")
     
-    remove(db=db, model=Plan, filter_query=(Plan.id==plan_id))
+    await remove(db=db, model=Plan, filter_query=(Plan.id==plan_id))
     return DeletedResponse()

@@ -23,53 +23,20 @@ def check_expired_items():
         })
         db.commit()
         print(f"[CELERY] Marked promocode {promocode.id} as expired")
-            
-@celery.task()
-def updateFreePaymentDate():
-    db = SessionLocal()
-    today = datetime.today().date()
-    next_payment_date = today + timedelta(days=30)
-    
-    orders = db.query(Order).filter(Order.status=="free", Order.next_payment_date==today).all()
-    
-    for order in orders:
-        db.query(Order).filter(Order.id==order.id).update({
-            "next_payment_date":next_payment_date
-        })
-        db.commit()        
-    print("Free order's updated")
     
 @celery.task()
 def updateExpiredOrders():
     db = SessionLocal()
     today = datetime.today().date()
     
-    orders = db.query(Orders).filter(Orders.subcription_end_date < today).all()
+    orders = db.query(Order).filter(Order.subcription_end_date < today).all()
     for order in orders:
         db.query(User).filter(User.id==order.user_id).update({
             "subscribed":False
-        })   
-        db.commit()
-        
-        db.query(Orders).filter(Orders.id==order.id).delete()
-        db.commit()
-        
-    print("Deleted expired orders.")
-
-@celery.task()
-def chargeAutopayment():
-    db = SessionLocal()
-    today = datetime.today().date()
-    next_payment_date = today + timedelta(days=30)
-    
-    orders = db.query(Order).filter(Order.status=="paid", Order.next_payment_date==today).all()
-    
-    for order in orders:
-        print("Simulating autopayment")
-
-        db.query(Order).filter(Order.id==order.id).update({
-            "next_payment_date":next_payment_date
         })
         db.commit()
         
-    print("Monthly Payments charged")
+        db.query(Order).filter(Order.id==order.id).delete()
+        db.commit()
+        
+    print("Deleted expired orders.")

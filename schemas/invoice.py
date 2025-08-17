@@ -1,6 +1,6 @@
 # schemas/payme.py
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Literal, Dict, Any
 from enum import Enum
 from datetime import date
@@ -74,5 +74,11 @@ class SubscriptionType(str, Enum):
 class CreateOrderForm(BaseModel):
     plan_id: int
     promocode: Optional[str]
-    method: PaymentMethods
+    method: Optional[PaymentMethods] = None
     type: SubscriptionType
+    
+    @field_validator("method", mode="before")
+    def replace_zero_date(cls, value):
+        if value in ("", None):
+            return None
+        return value

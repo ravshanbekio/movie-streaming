@@ -64,28 +64,53 @@ async def click_token_callback(request: Request, db: Session = Depends(get_db)):
 
 
 @invoice_router.post("/create_order")
-async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    promocode = None
-    if form.promocode:
-        checkPromocodeExists = await get_one(db=db, model=Promocode, filter_query=and_(Promocode.name==form.promocode, Promocode.status==PromocodeStatus.ACCESSIBLE))
-        if not checkPromocodeExists:
-            return CustomResponse(status_code=400, detail="Bunday promokod mavjud emas")
-        promocode = checkPromocodeExists.id
-        
+async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):    
     checkPlanExists = await get_one(db=db, model=Plan, filter_query=(Plan.id==form.plan_id))
     if not checkPlanExists:
         return CustomResponse(status_code=400, detail="Bunday plan mavjud emas")
     
+    if form.promocode:
+        checkPromocodeExists = await get_one(db=db, model=Promocode, filter_query=and_(Promocode.name==form.promocode, Promocode.status==PromocodeStatus.ACCESSIBLE))
+        if not checkPromocodeExists:
+            return CustomResponse(status_code=400, detail="Bunday promokod mavjud emas")
+        
+        checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
+        if checkUsernotInOrders:
+            return CustomResponse(status_code=400, detail="Obuna allaqachon rasmiylashtirilgan!")
+        
+        payload = {
+            "user_id":current_user.id,
+            "promocode_id":checkPromocodeExists.id,
+            "amount":0,
+            "created_at":datetime.now(),
+            "next_payment_date":datetime.today().date() + (relativedelta(months=checkPlanExists.month) + relativedelta(days=30)),
+            "subscription_date":checkPlanExists.month,
+            "subcription_end_date": datetime.today().date() + relativedelta(months=checkPlanExists.month),
+            "status":"paid"
+        }
+        await create(db=db, model=Order, form=payload)
+        
+        promocode_payload = {
+            "limit": checkPromocodeExists.limit - 1
+        }
+        await change(db=db, model=Promocode, filter_query=(Promocode.id==checkPromocodeExists.id), form=promocode_payload)
+        refreshedPromocode = await get_one(db=db, model=Promocode, filter_query=(Promocode.id==checkPromocodeExists.id))
+        if refreshedPromocode.limit == 0:
+            await change(db=db, model=Promocode, filter_query=(Promocode.id==checkPromocodeExists.id), form={"status":PromocodeStatus.OVER})
+            
+        await change(db=db, model=User, filter_query=(User.id==current_user.id), form={"subscribed":True})
+        return {
+            "status":True
+        }
+        
     if form.type == SubscriptionType.BUY:
         checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
         if checkUsernotInOrders:
             return CustomResponse(status_code=400, detail="Obuna allaqachon rasmiylashtirilgan!")
 
-        amount = 0 if promocode is not None else checkPlanExists.price
         payload = {
             "user_id":current_user.id,
-            "promocode_id":promocode,
-            "amount":amount,
+            "amount":checkPlanExists.price,
             "created_at":datetime.now(),
             "next_payment_date": datetime.today().date() + timedelta(days=30),
             "subscription_date":checkPlanExists.month,
@@ -104,15 +129,6 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             "subcription_end_date": UpdateSubscriptionDate
         }
         await change(db=db, model=Order, filter_query=(Order.user_id==current_user.id, Order.status=="paid"), form=payload)
-    
-    if promocode is not None:
-        promocode_payload = {
-            "limit": checkPromocodeExists.limit - 1
-        }
-        await change(db=db, model=Promocode, filter_query=(Promocode.id==promocode), form=promocode_payload)
-        refreshedPromocode = await get_one(db=db, model=Promocode, filter_query=(Promocode.id==promocode))
-        if refreshedPromocode.limit == 0:
-            await change(db=db, model=Promocode, filter_query=(Promocode.id==promocode), form={"status":PromocodeStatus.OVER})
             
     link = None
     if form.method == "payme":
@@ -123,9 +139,14 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         )
         link = payme.create_payment(
             id=order,
-            amount=amount,
+            amount=checkPlanExists.price,
             return_url="http://161.97.113.186/click/token_callback"
         )
+        
+        return {
+        "total_price":checkPlanExists.price,
+        "link":link
+    }
     elif form.method == "click":
         click = ClickGateway(
             service_id=CLICK_SERVICE_ID,
@@ -136,15 +157,16 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         )
         click_data = click.create_payment(
             id=order,
-            amount=amount,
+            amount=checkPlanExists.price,
             return_url="http://161.97.113.186/click/token_callback",
         )
-        link = click_data['payment_url']
-
-    return {
-        "total_price":amount,
-        "link":link
+        
+        return {
+        "total_price":checkPlanExists.price,
+        "link":click_data['payment_url']
     }
+    else:
+        return CustomResponse(status_code=400, detail="To'lov noto'g'ri kiritildi")
 
 @invoice_router.post("/create_invoice")
 async def create_invoice(request: Request, form: PaymeRequest, db: Session = Depends(get_sync_db)):
