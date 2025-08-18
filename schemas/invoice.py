@@ -72,13 +72,19 @@ class SubscriptionType(str, Enum):
     UPDATE = "update"
 
 class CreateOrderForm(BaseModel):
-    plan_id: int
+    plan_id: Optional[int]
     promocode: Optional[str]
     method: Optional[PaymentMethods] = None
-    type: SubscriptionType
+    type: Optional[SubscriptionType]
     
     @field_validator("method", mode="before")
     def replace_zero_date(cls, value):
+        if value == None or value == "":
+            return None
+        return value
+    
+    @field_validator("type", mode="before")
+    def replace_empty_type(cls, value):
         if value in ("", None):
             return None
         return value

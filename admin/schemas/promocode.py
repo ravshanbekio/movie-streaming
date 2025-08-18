@@ -11,6 +11,7 @@ class PromocodeResponse(BaseModel):
     id: int
     name: str
     validity_period: date
+    month: int
     limit: int  
     status: PromocodeStatus
     

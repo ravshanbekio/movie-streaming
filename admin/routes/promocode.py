@@ -28,8 +28,8 @@ async def create_promocode(form: CreatePromocodeForm, db: AsyncSession = Depends
     
     promocode_month = datetime.today().date() + relativedelta(months=form.month)
     
-    if form.validity_period < promocode_month:
-        return CustomResponse(status_code=400, detail="Promokod amal qilish sanasi kiritilgan oydan kichik")
+    # if form.validity_period < promocode_month:
+    #     return CustomResponse(status_code=400, detail="Promokod amal qilish sanasi kiritilgan oydan kichik")
     
     # if form.validity_period < :
     #     return CustomResponse(status_code=400, detail="Noto'g'ri vaqt kiritildi")
@@ -38,6 +38,7 @@ async def create_promocode(form: CreatePromocodeForm, db: AsyncSession = Depends
         "name":form.name,
         "validity_period":form.validity_period,
         "limit":form.limit,
+        "month": form.month,
         "status":PromocodeStatus.ACCESSIBLE
     }
     await create(db=db, model=Promocode, form=payload)
@@ -55,8 +56,8 @@ async def update_promocode(form: UpdatePromocodeForm, db: AsyncSession = Depends
     
     promocode_month = datetime.today().date() + relativedelta(months=form.month)
     
-    if form.validity_period < promocode_month:
-        return CustomResponse(status_code=400, detail="Promokod amal qilish sanasi kiritilgan oydan kichik")
+    # if form.validity_period < promocode_month:
+    #     return CustomResponse(status_code=400, detail="Promokod amal qilish sanasi kiritilgan oydan kichik")
     
     # if form.validity_period < 0:
     #     return CustomResponse(status_code=400, detail="Noto'g'ri vaqt kiritildi")

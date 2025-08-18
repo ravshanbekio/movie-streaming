@@ -65,10 +65,75 @@ async def click_token_callback(request: Request, db: Session = Depends(get_db)):
 
 @invoice_router.post("/create_order")
 async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):    
-    checkPlanExists = await get_one(db=db, model=Plan, filter_query=(Plan.id==form.plan_id))
-    if not checkPlanExists:
-        return CustomResponse(status_code=400, detail="Bunday plan mavjud emas")
-    
+    if form.plan_id:
+        checkPlanExists = await get_one(db=db, model=Plan, filter_query=(Plan.id==form.plan_id))
+        if not checkPlanExists:
+            return CustomResponse(status_code=400, detail="Bunday plan mavjud emas")
+        if form.type == SubscriptionType.BUY:
+            checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
+            if checkUsernotInOrders:
+                return CustomResponse(status_code=400, detail="Obuna allaqachon rasmiylashtirilgan!")
+
+            payload = {
+                "user_id":current_user.id,
+                "amount":checkPlanExists.price,
+                "created_at":datetime.now(),
+                "next_payment_date": datetime.today().date() + timedelta(days=30),
+                "subscription_date":checkPlanExists.month,
+                "subcription_end_date":datetime.today().date() + relativedelta(months=checkPlanExists.month)
+            }
+            order = await create(db=db, model=Order, form=payload, id=True)
+            
+        elif form.type == SubscriptionType.UPDATE:
+            checkUserInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
+            if not checkUserInOrders:
+                return CustomResponse(status_code=400, detail="Bunday obuna mavjud emas")
+            
+            UpdateSubscriptionDate = checkUserInOrders.subcription_end_date + relativedelta(months=checkPlanExists.month)
+            payload = {
+                "amount":checkPlanExists.price,
+                "subcription_end_date": UpdateSubscriptionDate
+            }
+            await change(db=db, model=Order, filter_query=(Order.user_id==current_user.id, Order.status=="paid"), form=payload)
+                
+        link = None
+        if form.method == "payme":
+            payme = PaymeGateway(
+                payme_id=MERCHANT_ID,
+                payme_key=PAYME_KEY,
+                is_test_mode=False
+            )
+            link = payme.create_payment(
+                id=order,
+                amount=checkPlanExists.price,
+                return_url="http://161.97.113.186/click/token_callback"
+            )
+            
+            return {
+            "total_price":checkPlanExists.price,
+            "link":link
+        }
+        elif form.method == "click":
+            click = ClickGateway(
+                service_id=CLICK_SERVICE_ID,
+                merchant_id=CLICK_MERCHANT_ID,
+                merchant_user_id=CLICK_MERCHANT_USER_ID,
+                secret_key=SECRET_KEY,
+                is_test_mode=False
+            )
+            click_data = click.create_payment(
+                id=order,
+                amount=checkPlanExists.price,
+                return_url="http://161.97.113.186/click/token_callback",
+            )
+            
+            return {
+            "total_price":checkPlanExists.price,
+            "link":click_data['payment_url']
+        }
+        else:
+            return CustomResponse(status_code=400, detail="To'lov noto'g'ri kiritildi")
+        
     if form.promocode:
         checkPromocodeExists = await get_one(db=db, model=Promocode, filter_query=and_(Promocode.name==form.promocode, Promocode.status==PromocodeStatus.ACCESSIBLE))
         if not checkPromocodeExists:
@@ -84,8 +149,8 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             "amount":0,
             "created_at":datetime.now(),
             "next_payment_date":datetime.today().date() + (relativedelta(months=checkPromocodeExists.month) + relativedelta(days=30)),
-            "subscription_date":checkPromocodeExists,
-            "subcription_end_date": datetime.today().date() + relativedelta(months=checkPlanExists.month),
+            "subscription_date":checkPromocodeExists.month,
+            "subcription_end_date": datetime.today().date() + relativedelta(months=checkPromocodeExists.month),
             "status":"paid"
         }
         await create(db=db, model=Order, form=payload)
@@ -102,71 +167,8 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
         return {
             "status":True
         }
-        
-    if form.type == SubscriptionType.BUY:
-        checkUsernotInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
-        if checkUsernotInOrders:
-            return CustomResponse(status_code=400, detail="Obuna allaqachon rasmiylashtirilgan!")
-
-        payload = {
-            "user_id":current_user.id,
-            "amount":checkPlanExists.price,
-            "created_at":datetime.now(),
-            "next_payment_date": datetime.today().date() + timedelta(days=30),
-            "subscription_date":checkPlanExists.month,
-            "subcription_end_date":datetime.today().date() + relativedelta(months=checkPlanExists.month)
-        }
-        order = await create(db=db, model=Order, form=payload, id=True)
-        
-    elif form.type == SubscriptionType.UPDATE:
-        checkUserInOrders = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
-        if not checkUserInOrders:
-            return CustomResponse(status_code=400, detail="Bunday obuna mavjud emas")
-        
-        UpdateSubscriptionDate = checkUserInOrders.subcription_end_date + relativedelta(months=checkPlanExists.month)
-        payload = {
-            "amount":checkPlanExists.price,
-            "subcription_end_date": UpdateSubscriptionDate
-        }
-        await change(db=db, model=Order, filter_query=(Order.user_id==current_user.id, Order.status=="paid"), form=payload)
-            
-    link = None
-    if form.method == "payme":
-        payme = PaymeGateway(
-            payme_id=MERCHANT_ID,
-            payme_key=PAYME_KEY,
-            is_test_mode=False
-        )
-        link = payme.create_payment(
-            id=order,
-            amount=checkPlanExists.price,
-            return_url="http://161.97.113.186/click/token_callback"
-        )
-        
-        return {
-        "total_price":checkPlanExists.price,
-        "link":link
-    }
-    elif form.method == "click":
-        click = ClickGateway(
-            service_id=CLICK_SERVICE_ID,
-            merchant_id=CLICK_MERCHANT_ID,
-            merchant_user_id=CLICK_MERCHANT_USER_ID,
-            secret_key=SECRET_KEY,
-            is_test_mode=False
-        )
-        click_data = click.create_payment(
-            id=order,
-            amount=checkPlanExists.price,
-            return_url="http://161.97.113.186/click/token_callback",
-        )
-        
-        return {
-        "total_price":checkPlanExists.price,
-        "link":click_data['payment_url']
-    }
     else:
-        return CustomResponse(status_code=400, detail="To'lov noto'g'ri kiritildi")
+        return CustomResponse(status_code=400, detail="Formada xatolik")
 
 @invoice_router.post("/create_invoice")
 async def create_invoice(request: Request, form: PaymeRequest, db: Session = Depends(get_sync_db)):
