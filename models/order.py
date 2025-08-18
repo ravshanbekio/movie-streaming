@@ -7,7 +7,7 @@ class Order(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    promocode_id = Column(Integer, ForeignKey("promocodes.id"), nullable=True)
+    promocode_id = Column(Integer, ForeignKey("promocodes.id", ondelete="CASCADE"), nullable=True)
     amount = Column(BigInteger)
     created_at = Column(DateTime)
     next_payment_date = Column(Date)
