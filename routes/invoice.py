@@ -66,6 +66,7 @@ async def click_token_callback(request: Request, db: Session = Depends(get_db)):
 @invoice_router.post("/create_order")
 async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):    
     if form.plan_id:
+        order = None
         checkPlanExists = await get_one(db=db, model=Plan, filter_query=(Plan.id==form.plan_id))
         if not checkPlanExists:
             return CustomResponse(status_code=400, detail="Bunday plan mavjud emas")
@@ -94,7 +95,9 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
                 "amount":checkPlanExists.price,
                 "subcription_end_date": UpdateSubscriptionDate
             }
-            await change(db=db, model=Order, filter_query=(Order.user_id==current_user.id, Order.status=="paid"), form=payload)
+            order = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
+            order = order.id
+            await change(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"), form=payload)
                 
         link = None
         if form.method == "payme":
