@@ -9,7 +9,7 @@ class Episode(Base):
     __tablename__ = "episodes"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    content_id = Column(Integer, ForeignKey("contents.content_id"))
+    content_id = Column(Integer, ForeignKey("contents.content_id", ondelete="CASCADE"))
     seasion = Column(Integer)
     episode = Column(Integer)
     original_episode = Column(String(255))

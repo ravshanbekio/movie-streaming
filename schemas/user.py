@@ -38,3 +38,6 @@ class UserUpdateForm(BaseModel):
     phone_number: Optional[str]
     role: Optional[str]
     password: Optional[str]
+    
+class ConfirmSMSForm(BaseModel):
+    code: int

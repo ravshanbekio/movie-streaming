@@ -59,3 +59,4 @@ def send_to_all_users(all_tokens: List[str], title: str, body: str):
         result = send_push_batch(batch, title, body)
         results.append(result)
     return results
+

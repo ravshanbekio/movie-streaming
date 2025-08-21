@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -16,6 +16,7 @@ class User(Base):
     subscribed = Column(Boolean, default=False)
     status = Column(String(8), default="active")
     role = Column(String(30))
+    code = Column(BigInteger, default=0, nullable=True)
     joined_at = Column(DateTime)
     
     user_token = relationship("UserToken", back_populates="user_data")

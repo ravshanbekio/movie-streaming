@@ -1,3 +1,4 @@
+import random
 from fastapi import APIRouter, Depends
 from fastapi.responses import ORJSONResponse
 from sqlalchemy import and_
@@ -8,10 +9,11 @@ from crud import get_one, create, change
 from database import get_db
 from models.user import User
 from models.user_token import UserToken
-from schemas.user import UserCreateForm, UserUpdateForm
+from schemas.user import UserCreateForm, UserUpdateForm, ConfirmSMSForm
 from utils.auth import get_password_hash, get_current_active_user
 from utils.exceptions import CustomResponse, UpdatedResponse
 from utils.auth import create_access_token, ACCESS_TOKEN_EXPIRE_DAYS
+from utils.sms_integration import send_sms
 
 user_router = APIRouter(tags=["User"])
 
@@ -29,6 +31,7 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
     access_token = create_access_token(
         data={"sub": form.phone_number}, expires_delta=access_token_expires
     )
+    code = random.randint(111111, 999999)
     data = {
         "first_name":form.first_name,
         "last_name":form.last_name,
@@ -36,10 +39,12 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         "password": form.password,
         "role": form.role,
         "country":form.country,
-        "joined_at":datetime.now()
+        "joined_at":datetime.now(),
+        "code": code
     }
     user = await create(db=db, model=User, form=data, id=True)
     await create(db=db, model=UserToken, form={"user_id":user, "access_token":access_token, "created_at":datetime.now()})
+    await send_sms(phone_number=form.phone_number, code=code)
     return ORJSONResponse(status_code=201, content={"token":access_token})
 
 
@@ -65,3 +70,17 @@ async def update_user(form: UserUpdateForm, db: AsyncSession = Depends(get_db), 
     
     await change(db=db, model=User, filter_query=(User.id==form.id), form=form.model_dump(exclude={"id"}))
     return UpdatedResponse()
+
+@user_router.put("/confirm_sms")
+async def confirm_sms(form: ConfirmSMSForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    get_user = await get_one(db=db, model=User, filter_query=(User.id==current_user.id))
+    if get_user.code != form.code:
+        return False
+    return True
+
+@user_router.post("/resend_sms")
+async def resend_sms(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    code = random.randint(111111, 999999)
+    await change(db=db, model=User, filter_query=(User.id==current_user.id), form={"code":code})
+    await send_sms(phone_number=current_user.phone_number, code=code)
+    return CustomResponse(status_code=200, detail="SMS qayta yuborildi")
