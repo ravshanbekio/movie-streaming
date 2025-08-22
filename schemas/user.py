@@ -40,4 +40,4 @@ class UserUpdateForm(BaseModel):
     password: Optional[str]
     
 class ConfirmSMSForm(BaseModel):
-    code: int
+    code: str

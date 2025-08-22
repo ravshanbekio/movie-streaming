@@ -74,7 +74,7 @@ async def update_user(form: UserUpdateForm, db: AsyncSession = Depends(get_db), 
 @user_router.put("/confirm_sms")
 async def confirm_sms(form: ConfirmSMSForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     get_user = await get_one(db=db, model=User, filter_query=(User.id==current_user.id))
-    if get_user.code != form.code:
+    if get_user.code != int(form.code):
         return False
     return True
 

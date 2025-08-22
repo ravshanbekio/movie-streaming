@@ -6,6 +6,8 @@ from routes.auth import auth_router
 from routes.user import user_router
 from routes.fcm_token import fcm_token_router
 from routes.invoice import invoice_router
+from routes.version import version_router
+
 # Admin Side
 from admin.routes.admin import admin_router
 from admin.routes.genre import genre_router
@@ -38,6 +40,7 @@ app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(fcm_token_router)
 app.include_router(invoice_router)
+app.include_router(version_router)
 # Admin
 app.include_router(admin_router)
 app.include_router(genre_router)
