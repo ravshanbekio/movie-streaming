@@ -55,24 +55,16 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
         limit = 2
 
     filters.append(Content.converted_content.isnot(None))
-    if current_user.subscribed == False:
-        filters.append(Content.subscription_status==False)
     filter_query = and_(*filters) if filters else None
     return await get_all(db=db, model=Content, filter_query=filter_query, options=[joinedload(Content.genre_data)], order_by=order_by, unique=True, page=page, limit=limit)
 
 
 @content_router.get("/content/one")
 async def get_content_by_id(content_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    if current_user.subscribed == False:
-        content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==content_id, Content.subscription_status==False), options=[joinedload(Content.genre_data)])
-        
-        previous_content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id < content.content_id, Content.subscription_status==False), first=True)
-        next_content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id > content.content_id, Content.subscription_status==False), first=True)
-    else:
-        content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id), options=[joinedload(Content.genre_data)])
-        
-        previous_content = await get_one(db=db, model=Content, filter_query=(Content.content_id < content.content_id), first=True)
-        next_content = await get_one(db=db, model=Content, filter_query=(Content.content_id > content.content_id), first=True)
+    content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id), options=[joinedload(Content.genre_data)])
+    
+    previous_content = await get_one(db=db, model=Content, filter_query=(Content.content_id < content.content_id), first=True)
+    next_content = await get_one(db=db, model=Content, filter_query=(Content.content_id > content.content_id), first=True)
     if not content:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     
