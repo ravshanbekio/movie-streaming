@@ -10,14 +10,14 @@ from models.notification import Notification
 from models.user import User
 from schemas.fcm_token import TokenCreate, BroadcastForm
 from utils.auth import get_current_active_user
-from utils.exceptions import CreatedResponse, UpdatedResponse
+from utils.exceptions import CreatedResponse, CustomResponse, UpdatedResponse
 from utils.notification import send_to_all_users
 
 fcm_token_router = APIRouter(tags=["Notification"])
 
 @fcm_token_router.get("/get_notifications")
 async def get_notifications(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user), page: int = 1, limit: int = 25):
-    return await get_all(db=db, model=Notification, order_by=(desc(Notification.created_at)), page=page, limit=limit)
+    return await get_all(db=db, model=Notification, filter_query=(Notification.created_at > current_user.joined_at), order_by=(desc(Notification.created_at)), page=page, limit=limit)
 
 @fcm_token_router.post("/fcm_token")
 async def fcm_token(form: TokenCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
