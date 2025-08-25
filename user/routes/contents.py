@@ -54,7 +54,10 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
     if current_user.country != "998":
         limit = 2
 
-    filters.append(Content.converted_content.isnot(None))
+    filters.append(or_(
+        Content.converted_content.isnot(None), 
+        Content.converted_trailer.isnot(None)
+        ))
     filter_query = and_(*filters) if filters else None
     return await get_all(db=db, model=Content, filter_query=filter_query, options=[joinedload(Content.genre_data)], order_by=order_by, unique=True, page=page, limit=limit)
 

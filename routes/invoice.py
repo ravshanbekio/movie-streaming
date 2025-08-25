@@ -108,8 +108,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             )
             link = payme.create_payment(
                 id=order,
-                amount=checkPlanExists.price,
-                return_url="http://161.97.113.186/click/token_callback"
+                amount=checkPlanExists.price
             )
             
             return {
@@ -126,8 +125,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             )
             click_data = click.create_payment(
                 id=order,
-                amount=checkPlanExists.price,
-                return_url="http://161.97.113.186/click/token_callback",
+                amount=checkPlanExists.price
             )
             
             return {

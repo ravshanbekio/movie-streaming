@@ -171,7 +171,9 @@ async def create_content(
         if trailer:
             task_queue.enqueue(convert_and_upload, 
                                db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_content,
-                               input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=600)
+                               input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=5000)
+        
+        return trailer
 
         for genre in get_genre['data']:
             await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
