@@ -137,7 +137,7 @@ async def create_content(
             Bucket=R2_BUCKET,
             Key=f"trailers/{trailer.filename}",
             ExtraArgs={'ContentType': trailer.content_type}
-        )   
+        )
             trailer_folder = f"{R2_PUBLIC_ENDPOINT}/trailers/{trailer.filename}"
             
         
@@ -173,8 +173,6 @@ async def create_content(
                                db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_content,
                                input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=5000)
         
-        return trailer
-
         for genre in get_genre['data']:
             await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
 

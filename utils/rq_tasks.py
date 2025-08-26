@@ -36,7 +36,7 @@ async def convert_and_upload(
             "converted_content":f"{input_url}/"
         }
     elif output_prefix == "trailers":
-        model == Content
+        model = Content
         filter_query = Content.content_id==id
         form = {
             "converted_trailer":f"{input_url}/"
