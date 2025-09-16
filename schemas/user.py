@@ -21,7 +21,7 @@ class UserResponse(BaseModel):
 
 class UserAuthForm(BaseModel):
     phone_number: str
-    password: str
+    password: Optional[str]
 
 class UserCreateForm(BaseModel):
     first_name: str
@@ -41,3 +41,10 @@ class UserUpdateForm(BaseModel):
     
 class ConfirmSMSForm(BaseModel):
     code: str
+    
+class PhoneNumberForm(BaseModel):
+    phone_number: str
+    
+class ResetPasswordForm(BaseModel):
+    phone_number: str
+    password: str

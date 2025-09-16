@@ -20,7 +20,7 @@ from integrations.payme.webhook import CustomPaymeWebhookHandler
 from integrations.click.webhook import CustomClickWebhookHandler
 
 from database import get_db, get_sync_db
-from crud import get_all, get_one, create, change, delete
+from crud import get_all, get_one, create, change, remove
 from models.user import User
 from models.order import Order
 from models.plans import Plan
@@ -92,12 +92,17 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             
             UpdateSubscriptionDate = checkUserInOrders.subcription_end_date + relativedelta(months=checkPlanExists.month)
             payload = {
+                "user_id":current_user.id,
+                "created_at":datetime.now(),
+                "next_payment_date": datetime.today().date() + timedelta(days=30),
                 "amount":checkPlanExists.price,
+                "subscription_date":checkPlanExists.month,
                 "subcription_end_date": UpdateSubscriptionDate
             }
-            order = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
-            order = order.id
-            await change(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"), form=payload)
+            # order = await get_one(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"))
+            # order = order.id
+            await change(db=db, model=Order, filter_query=and_(Order.user_id==current_user.id, Order.status=="paid"), form={"status":"freeze"})
+            order = await create(db=db, model=Order, form=payload, id=True)
                 
         link = None
         if form.method == "payme":

@@ -9,6 +9,9 @@ class CustomClickWebhookHandler(ClickWebhookHandler):
         order.status = "paid"
         self.db.commit()
         
+        self.db.query(Order).filter(Order.user_id==order.user_id, Order.status=="freeze").delete()
+        self.db.commit()
+        
         user = self.db.query(User).filter(User.id==order.user_id).update({
             "subscribed":True
         })
@@ -18,4 +21,9 @@ class CustomClickWebhookHandler(ClickWebhookHandler):
         # Handle cancelled payment
         order = self.db.query(Order).filter(Order.id == transaction.account_id).first()
         order.status = "cancelled"
+        self.db.commit()
+        
+        self.db.query(Order).filter(Order.user_id==order.user_id, Order.status=="freeze").update({
+            "status":"paid"
+        })
         self.db.commit()

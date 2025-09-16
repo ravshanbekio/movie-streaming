@@ -21,16 +21,22 @@ async def token(form_data: UserAuthForm, db: AsyncSession = Depends(get_db)):
     query = await db.execute(select(User).where(User.phone_number == form_data.phone_number, User.status == "active").options(
         joinedload(User.order).load_only(Order.id, Order.subcription_end_date), with_loader_criteria(Order, Order.status=="paid")))
     user = query.scalars().first()
-    if user:
-        is_validate_password = pwd_context.verify(form_data.password, user.password)
-    else:
-        is_validate_password = False
-    if not is_validate_password:    
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Login yoki parolda xatolik",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    
+    if not user:
+        raise HTTPException(status_code=200, detail="Login yoki parolda xatolik")
+    
+    if form_data.password:
+        if user:
+            is_validate_password = pwd_context.verify(form_data.password, user.password)
+        else:
+            is_validate_password = False
+        if not is_validate_password:    
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Login yoki parolda xatolik",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
     access_token_expires = timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     access_token = create_access_token(
         data={"sub": user.phone_number}, expires_delta=access_token_expires
