@@ -44,25 +44,6 @@ CLICK_MERCHANT_USER_ID = os.getenv("CLICK_MERCHANT_USER_ID")
 CLICK_SERVICE_ID = os.getenv("CLICK_SERVICE_ID")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-@invoice_router.get("/click/token_callback")
-async def click_token_callback(request: Request, db: Session = Depends(get_db)):
-    data = await request.body()
-
-    # if data.get("status") == "success":
-    #     user_id = int(data["merchant_user_id"])
-    #     card_token = data["card_token"]
-
-    #     existing = db.query(PaymentToken).filter_by(user_id=user_id).first()
-    #     if existing:
-    #         existing.token = card_token
-    #     else:
-    #         db.add(ClickToken(user_id=user_id, token=card_token))
-    #     db.commit()
-    #     return {"status": "ok"}
-    
-    return {"status": data}
-
-
 @invoice_router.post("/create_order")
 async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):    
     if form.plan_id:
@@ -113,7 +94,8 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             )
             link = payme.create_payment(
                 id=order,
-                amount=checkPlanExists.price
+                amount=checkPlanExists.price,
+                return_url="myapp://payment-success"
             )
             
             return {
@@ -130,7 +112,8 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             )
             click_data = click.create_payment(
                 id=order,
-                amount=checkPlanExists.price
+                amount=checkPlanExists.price,
+                return_url="myapp://payment-success"
             )
             
             return {

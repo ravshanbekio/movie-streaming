@@ -1,5 +1,4 @@
 from fastapi import Depends, APIRouter, HTTPException, status
-from typing import Optional
 from sqlalchemy import select, update, insert
 from sqlalchemy.orm import joinedload, with_loader_criteria
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +29,7 @@ async def token(form_data: UserAuthForm, db: AsyncSession = Depends(get_db)):
             is_validate_password = pwd_context.verify(form_data.password, user.password)
         else:
             is_validate_password = False
-        if not is_validate_password:    
+        if not is_validate_password:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Login yoki parolda xatolik",

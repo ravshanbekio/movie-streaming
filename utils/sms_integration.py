@@ -39,7 +39,7 @@ async def send_sms(phone_number: str, code: int):
 
             sms_data = {
                 "mobile_phone": phone_number,
-                "message": "Bu Eskiz dan test",
+                "message": f"Aniduble ilovasida ro'yxatdan o'tish uchun kod: {code}",
                 "from": "4546",
                 "callback_url": ""
             }

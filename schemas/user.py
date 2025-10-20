@@ -40,6 +40,7 @@ class UserUpdateForm(BaseModel):
     password: Optional[str]
     
 class ConfirmSMSForm(BaseModel):
+    phone_number: str
     code: str
     
 class PhoneNumberForm(BaseModel):

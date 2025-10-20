@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from database import get_db
 from models.user import User
 from models.user_token import UserToken
-from schemas.user import TokenData, UserAuthForm
+from schemas.user import TokenData
 from datetime import datetime, timedelta
 from typing import Optional
 
