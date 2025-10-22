@@ -55,8 +55,8 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     renditions = [
-        {"name": "360p",  "resolution": "640x360",   "bitrate": "800k",  "maxrate": "856k",  "bufsize": "1200k"},
-        {"name": "480p",  "resolution": "854x480",   "bitrate": "1400k", "maxrate": "1498k", "bufsize": "2100k"},
+        # {"name": "360p",  "resolution": "640x360",   "bitrate": "800k",  "maxrate": "856k",  "bufsize": "1200k"},
+        # {"name": "480p",  "resolution": "854x480",   "bitrate": "1400k", "maxrate": "1498k", "bufsize": "2100k"},
         {"name": "720p",  "resolution": "1280x720",  "bitrate": "2800k", "maxrate": "2996k", "bufsize": "4200k"},
         {"name": "1080p", "resolution": "1920x1080", "bitrate": "5000k", "maxrate": "5350k", "bufsize": "7500k"},
     ]
