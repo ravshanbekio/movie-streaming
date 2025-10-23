@@ -1,7 +1,12 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from sqlalchemy import select, update, delete, func, text
+from datetime import datetime, timezone, timedelta
 
+from database import AsyncSessionLocal
+from models.order import Order
 from routes.auth import auth_router
 from routes.user import user_router
 from routes.fcm_token import fcm_token_router
@@ -32,6 +37,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+scheduler = AsyncIOScheduler()
+
+async def cleanup_unpaid_orders():
+    async with AsyncSessionLocal() as session:
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+
+        orders = (await session.execute(select(Order)
+                                       .where(Order.status=="free")
+                                       .where(Order.promocode_id==None)
+                                       .where(Order.created_at < func.now() - text("INTERVAL 1 MINUTE"))
+                                       )).scalars().all()
+        await session.execute(
+            update(Order).where(Order.user_id.in_([user.user_id for user in orders])).values(status="paid")
+        )
+        
+        await session.execute(
+            delete(Order)
+            .where(Order.id.in_([order_id.id for order_id in orders]))
+        )
+        await session.commit()
+        print("🧹 Cleanup done at:", datetime.now())
+
+@app.on_event("startup")
+async def start_scheduler():
+    print("Cleanup task is running")
+    scheduler.add_job(cleanup_unpaid_orders, 'interval', minutes=1)
+    scheduler.start()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

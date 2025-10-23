@@ -13,8 +13,12 @@ celery.conf.beat_schedule = {
         "schedule": 86400.0,
     },
     "update-expired-orders":{
-        "task":"utils.celery.tasks.check_expired_items",
+        "task":"utils.celery.tasks.updateExpiredOrders",
         "schedule":86400.0,
+    },
+    "delete-unfinished-orders":{
+        "task":"utils.celery.tasks.deleteUnfinishedOrders",
+        "schedule":5
     }
 }
 celery.conf.timezone = 'UTC'

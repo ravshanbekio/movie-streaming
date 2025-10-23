@@ -40,3 +40,12 @@ def updateExpiredOrders():
         db.commit()
         
     print("Deleted expired orders.")
+    
+@celery.task()
+def deleteUnfinishedOrders():
+    db = SessionLocal()
+    
+    db.query(Order).filter(Order.promocode_id==None, Order.status=="free").delete()
+    db.commit()
+    
+    print("Deleted unfininished orders")
