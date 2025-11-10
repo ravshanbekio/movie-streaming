@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import desc, and_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, with_loader_criteria
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from collections import defaultdict
@@ -22,10 +22,11 @@ async def get_episodes(content_id: int, page: int = 1, limit: int = 25, db: Asyn
     # if current_user.subscribed == False:
     #     content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==content_id, Content.converted_content.isnot(None), Content.subscription_status==False), options=[joinedload(Content.episodes)])
     # else:
-    content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==content_id, Content.converted_content.isnot(None)), options=[joinedload(Content.episodes)])
+    content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==content_id, Content.converted_trailer.isnot(None)))
     if not content:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot topilmadi")
     
+    content = await get_one(db=db, model=Content, filter_query=and_(Content.content_id==content_id, Content.converted_trailer.isnot(None)), options=[joinedload(Content.episodes), with_loader_criteria(Episode, Episode.converted_episode.isnot(None))])
     grouped = defaultdict(list)
     for episode in content.episodes:
         grouped[episode.seasion].append({
@@ -44,7 +45,7 @@ async def get_episodes(content_id: int, page: int = 1, limit: int = 25, db: Asyn
     }
     for key, value in grouped.items()
     ])
-    
+
 
 @episode_router.get("/episode/one")
 async def get_episode(episode_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):

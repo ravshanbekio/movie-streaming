@@ -94,7 +94,7 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                 )
                 print(f"[RQ Task] ffmpeg started for {r['name']}", flush=True)
                 try:
-                    _, stderr = await asyncio.wait_for(proc.communicate(), timeout=5000)
+                    _, stderr = await asyncio.wait_for(proc.communicate(), timeout=14400)
                 except asyncio.TimeoutError:
                     proc.kill()
                     await proc.wait()
