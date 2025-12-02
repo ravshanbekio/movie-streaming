@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 
-from crud import get_one, create, change
+from crud import get_one, create, change, remove
 from database import get_db
 from models.user import User
 from models.user_token import UserToken
@@ -47,6 +47,14 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
     await send_sms(phone_number=form.phone_number, code=code)
     return ORJSONResponse(status_code=201, content={"token":access_token})
 
+@user_router.delete("/delete/user", summary="Foydalanuvchini o'chirish")
+async def delete_user(phone_number: str, db: AsyncSession = Depends(get_db)):
+    get_user = await get_one(db=db, model=User, filter_query=(User.phone_number==phone_number))
+    if not get_user:
+        return CustomResponse(status_code=200, detail="Foydalanuvchi topilmadi")
+    
+    await remove(db=db, model=User, filter_query=(User.phone_number==phone_number))
+    return ORJSONResponse(status_code=200, content="Muvaffaqiyatli o'chirildi")
 
 @user_router.put("/admin/update", summary="Admin ma'lumotlarini o'zgartirish")
 async def update_user(form: UserUpdateForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):

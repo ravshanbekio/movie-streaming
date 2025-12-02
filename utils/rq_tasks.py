@@ -76,10 +76,12 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                     "-c:a", "aac", "-ar", "48000",
                     "-c:v", "h264", "-profile:v", "main", "-crf", "20", "-sc_threshold", "0",
                     "-preset", "ultrafast",
-                    "-g", "48", "-keyint_min", "48",
+                    "-vsync", "2",
+                    #"-g", "48", "-keyint_min", "48",
                     "-b:v", r["bitrate"],
                     "-maxrate", r["maxrate"],
                     "-bufsize", r["bufsize"],
+                    "-hls_flags", "independent_segments",
                     "-hls_time", "6", "-hls_playlist_type", "vod",
                     "-hls_segment_filename", segment_path,
                     str(output_path)
