@@ -44,6 +44,12 @@ CLICK_MERCHANT_USER_ID = os.getenv("CLICK_MERCHANT_USER_ID")
 CLICK_SERVICE_ID = os.getenv("CLICK_SERVICE_ID")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
+@invoice_router.get("/payment_status")
+async def get_payment_status():
+    return {
+        "message": False
+    }
+
 @invoice_router.post("/create_order")
 async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):    
     if form.plan_id:

@@ -10,3 +10,5 @@ Address already in use
 Port 9181 is in use by another program. Either identify and stop that program, or start the server with a different port.
 152.53.67.120 - - [26/Nov/2025 14:56:13] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00.)à\x00\x00\x00\x00\x00Cookie:')
 148.113.190.57 - - [29/Nov/2025 03:31:25] code 400, message Bad request syntax ('\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03ãÃV~Ü\x9e´ö\x96Säøv+Qjô^\x97\x06\x84\x88\x99\x95×')
+93.123.109.23 - - [04/Dec/2025 02:43:27] code 400, message Bad request version ('À\x14À')
+185.73.124.28 - - [04/Dec/2025 06:59:19] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie:')

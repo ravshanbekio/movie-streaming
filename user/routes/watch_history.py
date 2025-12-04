@@ -23,8 +23,9 @@ async def get_history(page: int = 1, limit: int = 25, db: AsyncSession = Depends
     limit = limit
     if current_user.country != "998":
         limit = 2
+        
     get_user_history = await get_all(db=db, model=UserHistory, filter_query=(UserHistory.user_id==current_user.id), options=[joinedload(UserHistory.content), 
-                                                                        joinedload(UserHistory.episode)], 
+                                                                        joinedload(UserHistory.episode)], order_by=(UserHistory.id.desc()),
                                     page=page, limit=limit, unique=True)
     
     grouped = {}
