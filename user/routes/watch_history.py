@@ -56,6 +56,7 @@ async def get_history(page: int = 1, limit: int = 25, db: AsyncSession = Depends
                     "converted_content": content.converted_content,
                     "thumbnail": content.thumbnail,
                     "content_duration": content.content_duration,
+                    "subscription_status":content.subscription_status,
                     "type": content.type,
                     "episodes": []
                 }

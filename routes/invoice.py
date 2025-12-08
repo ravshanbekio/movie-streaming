@@ -160,7 +160,7 @@ async def create_order(form: CreateOrderForm, db: AsyncSession = Depends(get_db)
             
         await change(db=db, model=User, filter_query=(User.id==current_user.id), form={"subscribed":True})
         return {
-            "status":True
+            "status":"Promokod rasmiylashtirildi"
         }
     else:
         return CustomResponse(status_code=400, detail="Formada xatolik")

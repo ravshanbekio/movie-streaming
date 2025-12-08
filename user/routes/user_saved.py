@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy import desc
+from sqlalchemy import desc, and_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
@@ -85,6 +85,17 @@ async def create_user_saved(form: UserSavedForm, db: AsyncSession = Depends(get_
         "episode_id":form.episode_id,
         "created_at":datetime.now()
     }
+    filters = [UserSaved.user_id==current_user.id]
+    if form.episode_id is not None:
+        filters.append(UserSaved.episode_id==form.episode_id)
+    else:
+        filters.append(UserSaved.content_id==form.content_id)
+        
+    filter_query = filters
+    checkSavedContentExists = await get_one(db=db, model=UserSaved, filter_query=filter_query)
+    if checkSavedContentExists:
+        return CustomResponse(status_code=200, detail="Kontent allaqachon saqlangan")
+    
     get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==form['content_id']))
     if not get_content:
         return CustomResponse(status_code=400, detail=f"Bunday ID'dagi kontent mavjud emas [{form['content_id']}]")
