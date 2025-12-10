@@ -1,5 +1,7 @@
 import asyncio
 import os
+import subprocess
+import json
 import shutil
 from pathlib import Path
 from urllib.parse import urlparse
@@ -49,35 +51,74 @@ async def convert_and_upload(
     async with async_session() as session:
         await change(db=session, model=model, filter_query=filter_query, form=form)
 
+def _get_source_resolution_wh(input_url: str) -> tuple[int, int]:
+    """Uses ffprobe to get the source video's width and height."""
+    try:
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "json", input_url
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        info = json.loads(result.stdout)
+        
+        if "streams" in info and len(info["streams"]) > 0:
+            stream = info["streams"][0]
+            width = stream.get("width")
+            height = stream.get("height")
+            if width is not None and height is not None:
+                return int(width), int(height)
+                
+    except (subprocess.CalledProcessError, json.JSONDecodeError, Exception) as e:
+        print(f"[ERROR] Failed to get source resolution for {input_url}: {e}")
+        return 0, 0
+    
+    return 0, 0
+
 async def _convert_and_upload_async(input_url: str, filename: str, output_prefix: str):
-    print("[RQ Task] Async started", flush=True)
+    print("[RQ Task] Async started (Original Resolution Only)", flush=True)
     temp_dir = Path("/tmp/hls")
     temp_dir.mkdir(parents=True, exist_ok=True)
 
-    renditions = [
-        # {"name": "360p",  "resolution": "640x360",   "bitrate": "800k",  "maxrate": "856k",  "bufsize": "1200k"},
-        # {"name": "480p",  "resolution": "854x480",   "bitrate": "1400k", "maxrate": "1498k", "bufsize": "2100k"},
-        {"name": "720p",  "resolution": "1280x720",  "bitrate": "2800k", "maxrate": "2996k", "bufsize": "4200k"},
-        {"name": "1080p", "resolution": "1920x1080", "bitrate": "5000k", "maxrate": "5350k", "bufsize": "7500k"},
-    ]
-
     try:
-        async def convert_rendition(r):
+        # 💡 1. Asl o'lchamni olish
+        source_width, source_height = _get_source_resolution_wh(input_url)
+        if source_height == 0:
+            raise RuntimeError("Asl video o'lchamini aniqlab bo'lmadi.")
+            
+        resolution_str = f"{source_width}x{source_height}"
+        rendition_name = f"original_{source_height}p" # Yagona o'lcham nomi
+
+        print(f"[RQ Task] Asl video o'lchami: {resolution_str}. Faqat shu o'lchamda konvertatsiya qilinadi.", flush=True)
+
+        # 💡 2. Yagona konvertatsiya uchun ma'lumotlarni tayyorlash
+        original_rendition = {
+            "name": rendition_name,
+            "resolution": resolution_str,
+            # Streaming uchun bitrate'ni moslash: Original o'lcham uchun yuqori qiymat berish tavsiya etiladi.
+            "bitrate": "8000k", 
+            "maxrate": "8560k",
+            "bufsize": "12000k",
+        }
+
+        # 💡 3. Konvertatsiya qilish
+        async def convert_original(r):
             async with ffmpeg_semaphore:
                 subdir = temp_dir / r["name"]
                 subdir.mkdir(parents=True, exist_ok=True)
                 segment_path = str(subdir / "seg_%03d.ts")
                 output_path = subdir / "playlist.m3u8"
-
+                
                 cmd = [
                     "ffmpeg", "-y", "-loglevel", "error",
                     "-i", input_url,
-                    "-vf", f"scale={r['resolution']}",
+                    "-vf", f"scale={r['resolution']}", 
                     "-c:a", "aac", "-ar", "48000",
                     "-c:v", "h264", "-profile:v", "main", "-crf", "20", "-sc_threshold", "0",
                     "-preset", "ultrafast",
                     "-vsync", "2",
-                    #"-g", "48", "-keyint_min", "48",
                     "-b:v", r["bitrate"],
                     "-maxrate", r["maxrate"],
                     "-bufsize", r["bufsize"],
@@ -87,39 +128,39 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                     str(output_path)
                 ]
 
-                print(f"[RQ Task] Executing FFMPEG for {r['name']}:", " ".join(cmd), flush=True)
+                print(f"[RQ Task] Executing FFMPEG for original stream:", " ".join(cmd), flush=True)
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdin=asyncio.subprocess.DEVNULL,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
-                print(f"[RQ Task] ffmpeg started for {r['name']}", flush=True)
+                print(f"[RQ Task] ffmpeg started for original stream", flush=True)
                 try:
                     _, stderr = await asyncio.wait_for(proc.communicate(), timeout=14400)
                 except asyncio.TimeoutError:
                     proc.kill()
                     await proc.wait()
-                    raise RuntimeError("FFmpeg timed out")
+                    raise RuntimeError("FFmpeg vaqti tugadi (Timeout)")
 
                 if proc.returncode != 0:
                     error_msg = stderr.decode().strip()
-                    raise RuntimeError(f"FFmpeg failed for {r['name']}: {error_msg}")
+                    raise RuntimeError(f"FFmpeg xato qildi: {error_msg}")
 
-        # ✅ Run all renditions in parallel (with max 2 at once)
-        await asyncio.gather(*[convert_rendition(r) for r in renditions])
+        # Yagona konvertatsiyani bajarish
+        await convert_original(original_rendition)
 
-        # Write master.m3u8
         master_path = temp_dir / "master.m3u8"
+        bw = original_rendition['bitrate'].replace("k", "000")
+        
         master_playlist = "#EXTM3U\n#EXT-X-VERSION:3\n"
-        for r in renditions:
-            bw = r['bitrate'].replace("k", "000")
-            master_playlist += f"#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={r['resolution']}\n{r['name']}/playlist.m3u8\n"
+        master_playlist += f"#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={resolution_str}\n{original_rendition['name']}/playlist.m3u8\n"
 
         with open(master_path, "w") as f:
             f.write(master_playlist)
+        print("[RQ Task] Master playlist yaratildi.", flush=True)
 
-        print("[RQ Task] Uploading all segments...", flush=True)
+        print("[RQ Task] Barcha segmentlar va playlistlar yuklanmoqda...", flush=True)
         for root, _, files in os.walk(temp_dir):
             for fname in files:
                 file_path = Path(root) / fname
@@ -127,13 +168,13 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                 key = f"{output_prefix}/{filename}/{relative_path}".replace("\\", "/")
                 with open(file_path, "rb") as f:
                     r2.upload_fileobj(f, R2_BUCKET, key)
-                    print(f"[RQ Task] Uploaded: {key}", flush=True)
+                    print(f"[RQ Task] Yuklandi: {key}", flush=True)
 
-        print("[RQ Task] ✅ All renditions uploaded", flush=True)
+        print("[RQ Task] ✅ Barcha fayllar muvaffaqiyatli yuklandi", flush=True)
 
     except Exception as e:
-        print("[RQ Task] ❌ Exception:", str(e), flush=True)
+        print("[RQ Task] ❌ Xato:", str(e), flush=True)
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
-        print("[RQ Task] Cleaned up temp dir", flush=True)
+        print("[RQ Task] Vaqtinchalik katalog tozalandi", flush=True)
