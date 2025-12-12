@@ -81,15 +81,15 @@ async def get_user_saved(page: int = 1, limit: int = 25, db: AsyncSession = Depe
 async def create_user_saved(form: UserSavedForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     form = {
         "user_id":current_user.id,
-        "content_id":form.content_id,
-        "episode_id":form.episode_id,
+        "content_id":form['content_id'],
+        "episode_id":form['episode_id'],
         "created_at":datetime.now()
     }
     filters = [UserSaved.user_id==current_user.id]
-    if form.episode_id is not None:
-        filters.append(UserSaved.episode_id==form.episode_id)
+    if form['episode_id'] is not None:
+        filters.append(UserSaved.episode_id==form['episode_id'])
     else:
-        filters.append(UserSaved.content_id==form.content_id)
+        filters.append(UserSaved.content_id==form['content_id'])
         
     filter_query = filters
     checkSavedContentExists = await get_one(db=db, model=UserSaved, filter_query=filter_query)

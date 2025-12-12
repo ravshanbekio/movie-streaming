@@ -106,7 +106,7 @@ async def create_new_episode(
         created_episode = await create(db=db, model=Episode, form=form, id=True)
         task_queue.enqueue(convert_and_upload, 
                            db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_episode,
-                           input_url=episode_folder, filename=episode_video.filename, output_prefix="episodes", job_timeout=10000)
+                           input_url=episode_folder, filename=episode_video.filename, output_prefix="episodes", job_timeout=15000)
         return CreatedResponse()
 
     except (BotoCoreError, ClientError) as e:
