@@ -78,32 +78,32 @@ async def get_user_saved(page: int = 1, limit: int = 25, db: AsyncSession = Depe
     }    
     
 @saved_router.post("/saved/create")
-async def create_user_saved(form: UserSavedForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+async def create_user_saved(payload: UserSavedForm, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     form = {
         "user_id":current_user.id,
-        "content_id":form['content_id'],
-        "episode_id":form['episode_id'],
+        "content_id":payload.content_id,
+        "episode_id":payload.episode_id,
         "created_at":datetime.now()
     }
     filters = [UserSaved.user_id==current_user.id]
-    if form['episode_id'] is not None:
-        filters.append(UserSaved.episode_id==form   ['episode_id'])
+    if payload.episode_id is not None:
+        filters.append(UserSaved.episode_id==payload.episode_id)
     else:
-        filters.append(UserSaved.content_id==form['content_id'])
+        filters.append(UserSaved.content_id==payload.content_id)
         
-    filter_query = filters
+    filter_query = and_(*filters)
     checkSavedContentExists = await get_one(db=db, model=UserSaved, filter_query=filter_query)
     if checkSavedContentExists:
         return CustomResponse(status_code=200, detail="Kontent allaqachon saqlangan")
     
-    get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==form['content_id']))
+    get_content = await get_one(db=db, model=Content, filter_query=(Content.content_id==payload.content_id))
     if not get_content:
-        return CustomResponse(status_code=400, detail=f"Bunday ID'dagi kontent mavjud emas [{form['content_id']}]")
+        return CustomResponse(status_code=400, detail=f"Bunday ID'dagi kontent mavjud emas [{payload.content_id}]")
         
-    if form['episode_id']:
-        get_episode = await get_one(db=db, model=Episode, filter_query=(Episode.id==form['episode_id'], Episode.content_id==form['content_id']))
+    if payload.episode_id:
+        get_episode = await get_one(db=db, model=Episode, filter_query=(Episode.id==payload.episode_id, Episode.content_id==payload.content_id))
         if not get_episode:
-            return CustomRespone(status_code=400, detail=f"Bunday ID'dagi serial mavjud emas [{form['episode_id']}]")
+            return CustomRespone(status_code=400, detail=f"Bunday ID'dagi serial mavjud emas [{payload.episode_id}]")
     
     await create(db=db, model=UserSaved, form=form)
     return CreatedResponse()

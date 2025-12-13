@@ -21,7 +21,7 @@ from utils.exceptions import CreatedResponse, DeletedResponse, CustomResponse, U
 from utils.auth import get_current_active_user
 from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_IMAGE_FORMATS, AVAILABLE_VIDEO_FORMATS
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
-from utils.rq_tasks import convert_and_upload
+from utils.rq_tasks import rq_convert_and_upload
 
 
 redis = Redis()
@@ -104,7 +104,7 @@ async def create_new_episode(
             form["episode_thumbnail"] = save_thumbnail
 
         created_episode = await create(db=db, model=Episode, form=form, id=True)
-        task_queue.enqueue(convert_and_upload, 
+        task_queue.enqueue(rq_convert_and_upload, 
                            db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_episode,
                            input_url=episode_folder, filename=episode_video.filename, output_prefix="episodes", job_timeout=15000)
         return CreatedResponse()
