@@ -24,7 +24,7 @@ from utils.auth import get_current_active_user
 from utils.r2_utils import r2, R2_BUCKET, R2_PUBLIC_ENDPOINT
 from utils.compressor import upload_thumbnail_to_r2, AVAILABLE_VIDEO_FORMATS, AVAILABLE_IMAGE_FORMATS
 from utils.pagination import Page
-from utils.rq_tasks import convert_and_upload
+from utils.rq_tasks import rq_convert_and_upload
 
 redis = Redis()
 task_queue = Queue("video", connection=redis)
@@ -165,11 +165,11 @@ async def create_content(
         created_content = await create(db=db, model=Content, form=form, id=True)
         
         if content:
-            task_queue.enqueue(convert_and_upload, 
+            task_queue.enqueue(rq_convert_and_upload, 
                             db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_content,
                             input_url=content_folder, filename=content.filename, output_prefix="contents", job_timeout=15000)
         if trailer:
-            task_queue.enqueue(convert_and_upload, 
+            task_queue.enqueue(rq_convert_and_upload, 
                                db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_content,
                                input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=15000)
         

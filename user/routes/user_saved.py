@@ -87,7 +87,7 @@ async def create_user_saved(form: UserSavedForm, db: AsyncSession = Depends(get_
     }
     filters = [UserSaved.user_id==current_user.id]
     if form['episode_id'] is not None:
-        filters.append(UserSaved.episode_id==form['episode_id'])
+        filters.append(UserSaved.episode_id==form   ['episode_id'])
     else:
         filters.append(UserSaved.content_id==form['content_id'])
         

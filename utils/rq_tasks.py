@@ -1,3 +1,5 @@
+import logging
+import sys
 import asyncio
 import os
 import subprocess
@@ -13,8 +15,40 @@ from crud import change
 from models.episode import Episode
 from models.content import Content
 
-# Assume you have this globally if you used it before
+logger = logging.getLogger("rq.video")
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.propagate = False
+
 ffmpeg_semaphore = asyncio.Semaphore(2)
+
+def rq_convert_and_upload(
+    db,
+    id,
+    input_url: str,
+    filename: str,
+    output_prefix: str
+):
+    """
+    RQ ENTRY POINT (SYNC)
+    """
+    logger.info("[RQ Task] Wrapper started")
+    asyncio.run(
+        convert_and_upload(
+            db=db,
+            id=id,
+            input_url=input_url,
+            filename=filename,
+            output_prefix=output_prefix
+        )
+    )
 
 async def convert_and_upload(
         db,
@@ -23,7 +57,7 @@ async def convert_and_upload(
         filename: str, 
         output_prefix: str
                         ):
-    print("[RQ Task] Started", flush=True)
+    logger.info("[RQ Task] Started", )
     await _convert_and_upload_async(input_url, filename, output_prefix)
     if output_prefix == "episodes":
         model = Episode
@@ -72,13 +106,13 @@ def _get_source_resolution_wh(input_url: str) -> tuple[int, int]:
                 return int(width), int(height)
                 
     except (subprocess.CalledProcessError, json.JSONDecodeError, Exception) as e:
-        print(f"[ERROR] Failed to get source resolution for {input_url}: {e}")
+        logger.info(f"[ERROR] Failed to get source resolution for {input_url}: {e}")
         return 0, 0
     
     return 0, 0
 
 async def _convert_and_upload_async(input_url: str, filename: str, output_prefix: str):
-    print("[RQ Task] Async started (Original Resolution Only)", flush=True)
+    logger.info("[RQ Task] Async started (Original Resolution Only)", )
     temp_dir = Path("/tmp/hls")
     temp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -91,7 +125,7 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
         resolution_str = f"{source_width}x{source_height}"
         rendition_name = f"original_{source_height}p" # Yagona o'lcham nomi
 
-        print(f"[RQ Task] Asl video o'lchami: {resolution_str}. Faqat shu o'lchamda konvertatsiya qilinadi.", flush=True)
+        logger.info(f"[RQ Task] Asl video o'lchami: {resolution_str}. Faqat shu o'lchamda konvertatsiya qilinadi.", )
 
         # 💡 2. Yagona konvertatsiya uchun ma'lumotlarni tayyorlash
         original_rendition = {
@@ -128,14 +162,14 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                     str(output_path)
                 ]
 
-                print(f"[RQ Task] Executing FFMPEG for original stream:", " ".join(cmd), flush=True)
+                logger.info(f"[RQ Task] Executing FFMPEG for original stream:", " ".join(cmd), )
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdin=asyncio.subprocess.DEVNULL,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
-                print(f"[RQ Task] ffmpeg started for original stream", flush=True)
+                logger.info(f"[RQ Task] ffmpeg started for original stream", )
                 try:
                     _, stderr = await asyncio.wait_for(proc.communicate(), timeout=14400)
                 except asyncio.TimeoutError:
@@ -158,9 +192,9 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
 
         with open(master_path, "w") as f:
             f.write(master_playlist)
-        print("[RQ Task] Master playlist yaratildi.", flush=True)
+        logger.info("[RQ Task] Master playlist yaratildi.", )
 
-        print("[RQ Task] Barcha segmentlar va playlistlar yuklanmoqda...", flush=True)
+        logger.info("[RQ Task] Barcha segmentlar va playlistlar yuklanmoqda...", )
         for root, _, files in os.walk(temp_dir):
             for fname in files:
                 file_path = Path(root) / fname
@@ -168,13 +202,13 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                 key = f"{output_prefix}/{filename}/{relative_path}".replace("\\", "/")
                 with open(file_path, "rb") as f:
                     r2.upload_fileobj(f, R2_BUCKET, key)
-                    print(f"[RQ Task] Yuklandi: {key}", flush=True)
+                    logger.info(f"[RQ Task] Yuklandi: {key}", )
 
-        print("[RQ Task] ✅ Barcha fayllar muvaffaqiyatli yuklandi", flush=True)
+        logger.info("[RQ Task] ✅ Barcha fayllar muvaffaqiyatli yuklandi", )
 
     except Exception as e:
-        print("[RQ Task] ❌ Xato:", str(e), flush=True)
+        logger.info("[RQ Task] ❌ Xato:", str(e), )
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
-        print("[RQ Task] Vaqtinchalik katalog tozalandi", flush=True)
+        logger.info("[RQ Task] Vaqtinchalik katalog tozalandi", )
