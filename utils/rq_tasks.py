@@ -161,15 +161,18 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                     "-hls_segment_filename", segment_path,
                     str(output_path)
                 ]
-
-                logger.info(f"[RQ Task] Executing FFMPEG for original stream:", " ".join(cmd), )
+                
+                logger.info(
+                    "[RQ Task] Executing FFMPEG for original stream: %s",
+                    " ".join(cmd),
+                )
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdin=asyncio.subprocess.DEVNULL,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
-                logger.info(f"[RQ Task] ffmpeg started for original stream", )
+                logger.info(f"[RQ Task] ffmpeg started for original stream")
                 try:
                     _, stderr = await asyncio.wait_for(proc.communicate(), timeout=14400)
                 except asyncio.TimeoutError:
@@ -192,9 +195,9 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
 
         with open(master_path, "w") as f:
             f.write(master_playlist)
-        logger.info("[RQ Task] Master playlist yaratildi.", )
+        logger.info("[RQ Task] Master playlist yaratildi.")
 
-        logger.info("[RQ Task] Barcha segmentlar va playlistlar yuklanmoqda...", )
+        logger.info("[RQ Task] Barcha segmentlar va playlistlar yuklanmoqda...")
         for root, _, files in os.walk(temp_dir):
             for fname in files:
                 file_path = Path(root) / fname
@@ -202,12 +205,12 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                 key = f"{output_prefix}/{filename}/{relative_path}".replace("\\", "/")
                 with open(file_path, "rb") as f:
                     r2.upload_fileobj(f, R2_BUCKET, key)
-                    logger.info(f"[RQ Task] Yuklandi: {key}", )
+                    logger.info(f"[RQ Task] Yuklandi: {key}")
 
         logger.info("[RQ Task] ✅ Barcha fayllar muvaffaqiyatli yuklandi", )
 
     except Exception as e:
-        logger.info("[RQ Task] ❌ Xato:", str(e), )
+        logger.info(f"[RQ Task] ❌ Xato: {str(e)}")
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
