@@ -86,7 +86,7 @@ async def create_content(
     background_task: BackgroundTasks,
     title: str = Form(description="Sarlavha", repr=False),
     description: Optional[str] = Form(None, description="Batafsil ma'lumot", repr=False),
-    genre: List[int] = Form(None, description="Janr", repr=False),
+    genre: Optional[List[int]] = Form(None, description="Janr", repr=False),
     release_date: Optional[date] = Form(None, description="Chiqarilgan sana", repr=False),
     dubbed_by: Optional[str] = Form(None, description="Dublaj qilingan studio nomi", repr=False),
     status: ContentStatusEnum = Form(description="Status", repr=False),
@@ -103,9 +103,10 @@ async def create_content(
     if current_user.role not in AdminRole:
         return CustomResponse(status_code=400, detail="Sizda yetarli huquqlar yo'q")
     
-    get_genre = await get_all(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
-    if len(get_genre['data']) != len(genre):
-        return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
+    if genre:
+        get_genre = await get_all(db=db, model=Genre, filter_query=(Genre.genre_id.in_(genre)))
+        if len(get_genre['data']) != len(genre):
+            return CustomResponse(status_code=400, detail="Bunday janr mavjud emas")
 
     if release_date:
         if release_date < MIN_DATE:
@@ -172,9 +173,9 @@ async def create_content(
             task_queue.enqueue(rq_convert_and_upload, 
                                db="mysql+asyncmy://root:Madaminov27!@localhost:3306/movie_db", id=created_content,
                                input_url=trailer_folder, filename=trailer.filename, output_prefix="trailers", job_timeout=15000)
-        
-        for genre in get_genre['data']:
-            await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
+        if genre:
+            for genre in get_genre['data']:
+                await create(db=db, model=movie_genre_association, form={"content_id":created_content, "genre_id":genre.genre_id})
 
         return CreatedResponse()
     

@@ -113,7 +113,7 @@ def _get_source_resolution_wh(input_url: str) -> tuple[int, int]:
 
 async def _convert_and_upload_async(input_url: str, filename: str, output_prefix: str):
     logger.info("[RQ Task] Async started (Original Resolution Only)", )
-    temp_dir = Path("/tmp/hls")
+    temp_dir = Path(f"/tmp/{output_prefix}/hls/{filename}/")
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -214,4 +214,4 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
-        logger.info("[RQ Task] Vaqtinchalik katalog tozalandi", )
+        logger.info("[RQ Task] Vaqtinchalik katalog tozalandi", )   

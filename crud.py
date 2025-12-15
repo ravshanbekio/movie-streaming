@@ -47,10 +47,13 @@ async def get_all(
 
     return await paginate(data=data, total=total, page=page, limit=limit)
 
-async def get_one(db: AsyncSession, model, filter_query, options = None, first: bool = False):
+async def get_one(db: AsyncSession, model, filter_query, order_by = None, options = None, first: bool = False):
     query = select(model).where(filter_query)
     if options is not None:
         query = query.options(*options)
+    
+    if order_by is not None:
+        query = query.order_by(order_by)
         
     result = await db.execute(query)
     

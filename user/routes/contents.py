@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import desc, and_, or_
+from sqlalchemy import desc, and_, or_, asc
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
@@ -24,15 +24,19 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
                        db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     filters = []
     order_by = desc(Content.created_at)
+    
+    if current_user.id == 159:
+        filters.append(Content.content_id.in_([169, 170, 172]))
+    
     if search:
         filters.append(or_(Content.title.like(f"%{search}%"), Content.description.like(f"%{search}%")))
         
     if status:
-        if status == ContentSchema.ongoing:
-            filters.append(Content.status==ContentStatusEnum.ongoing)
-        if status == ContentSchema.stopped:
-            filters.append(Content.status==ContentStatusEnum.stopped)
-            
+            if status == ContentSchema.ongoing:
+                filters.append(Content.status==ContentStatusEnum.ongoing)
+            if status == ContentSchema.stopped:
+                filters.append(Content.status==ContentStatusEnum.stopped)
+                
     if subscription_status:
         filters.append(Content.subscription_status==subscription_status)
         
@@ -58,16 +62,28 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
         Content.converted_content.isnot(None), 
         Content.converted_trailer.isnot(None)
         ))
+    
     filter_query = and_(*filters) if filters else None
     return await get_all(db=db, model=Content, filter_query=filter_query, options=[joinedload(Content.genre_data)], order_by=order_by, unique=True, page=page, limit=limit)
 
-
 @content_router.get("/content/one")
 async def get_content_by_id(content_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    previous_content_filters = []
+    next_content_filters = []
+    if current_user.id == 159:
+        if content_id not in [169, 170, 172]:
+            return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
+
+        previous_content_filters.append(Content.content_id.in_([169, 170, 172]))
+        next_content_filters.append(Content.content_id.in_([169, 170, 172]))
+        
     content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id), options=[joinedload(Content.genre_data)])
     
-    previous_content = await get_one(db=db, model=Content, filter_query=(Content.content_id < content.content_id), first=True)
-    next_content = await get_one(db=db, model=Content, filter_query=(Content.content_id > content.content_id), first=True)
+    previous_content_filters.append(Content.content_id < content.content_id)
+    next_content_filters.append(Content.content_id > content.content_id)
+    
+    previous_content = await get_one(db=db, model=Content, filter_query=and_(*previous_content_filters), order_by=desc(Content.content_id), first=True)
+    next_content = await get_one(db=db, model=Content, filter_query=and_(*next_content_filters), order_by=asc(Content.content_id), first=True)
     if not content:
         return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
     
