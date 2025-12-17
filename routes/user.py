@@ -35,13 +35,13 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
     data = {
         "first_name":form.first_name,
         "last_name":form.last_name,
-        "phone_number":form.phone_number,
+        "phone_number":form.phone_number.strip(),
         "password": form.password,
         "role": form.role,
         "country":form.country,
         "joined_at":datetime.now(),
         "code": code
-    }
+    }   
     user = await create(db=db, model=User, form=data, id=True)
     await create(db=db, model=UserToken, form={"user_id":user, "access_token":access_token, "created_at":datetime.now()})
     await send_sms(phone_number=form.phone_number, code=code)

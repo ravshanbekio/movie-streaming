@@ -24,7 +24,7 @@ async def token(form_data: UserAuthForm, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=200, detail="Login yoki parolda xatolik")
     
-    if form_data.password:
+    if form_data.password is not None:
         if user:
             is_validate_password = pwd_context.verify(form_data.password, user.password)
         else:

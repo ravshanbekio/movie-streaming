@@ -21,7 +21,7 @@ class UserResponse(BaseModel):
 
 class UserAuthForm(BaseModel):
     phone_number: str
-    password: Optional[str]
+    password: Optional[str] = None
 
 class UserCreateForm(BaseModel):
     first_name: str
