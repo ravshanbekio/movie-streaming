@@ -61,9 +61,9 @@ async def get_contents(status: ContentSchema = None, page: int = 1, limit: int =
         ))
     
     if current_user.id == 170:
-        filters.append(Content.content_id.in_([169, 170, 172]))
+        filters.append(Content.content_id.in_([173, 174, 175]))
     else:
-        filters.append(Content.content_id.not_in([169, 170, 172]))
+        filters.append(Content.content_id.not_in([173, 174, 175]))
     
     filter_query = and_(*filters) if filters else None
     return await get_all(db=db, model=Content, filter_query=filter_query, options=[joinedload(Content.genre_data)], order_by=order_by, unique=True, page=page, limit=limit)
@@ -73,11 +73,11 @@ async def get_content_by_id(content_id: int, db: AsyncSession = Depends(get_db),
     previous_content_filters = []
     next_content_filters = []
     if current_user.id == 170:
-        if content_id not in [169, 170, 172]:
+        if content_id not in [173, 174, 175]:
             return CustomResponse(status_code=400, detail="Bunday ma'lumot mavjud emas")
 
-        previous_content_filters.append(Content.content_id.in_([169, 170, 172]))
-        next_content_filters.append(Content.content_id.in_([169, 170, 172]))
+        previous_content_filters.append(Content.content_id.in_([173, 174, 175]))
+        next_content_filters.append(Content.content_id.in_([173, 174, 175]))
         
     content = await get_one(db=db, model=Content, filter_query=(Content.content_id==content_id), options=[joinedload(Content.genre_data)])
     

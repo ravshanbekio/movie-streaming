@@ -115,15 +115,24 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
     logger.info("[RQ Task] Async started (Original Resolution Only)", )
     temp_dir = Path(f"/tmp/{output_prefix}/hls/{filename}/")
     temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 💡 Lokal serverda vaqtinchalik fayl yo'li
+    local_source_path = Path(f"/tmp/raw_source_{filename}")
 
     try:
-        # 💡 1. Asl o'lchamni olish
-        source_width, source_height = _get_source_resolution_wh(input_url)
+        # 💡 0. Videoni FFmpeg ishlatishdan oldin serverga yuklab olish
+        # Bu tarmoqdagi uzilishlar konvertatsiyani to'xtatib qo'ymasligini ta'minlaydi
+        logger.info(f"[RQ Task] Original videoni R2 dan yuklab olish boshlandi: {filename}")
+        r2.download_file(R2_BUCKET, f"{output_prefix}/{filename}", str(local_source_path))
+        logger.info("[RQ Task] Original video lokalga muvaffaqiyatli yuklandi.")
+
+        # 💡 1. Asl o'lchamni olish (Endi lokal fayldan o'qiymiz)
+        source_width, source_height = _get_source_resolution_wh(str(local_source_path))
         if source_height == 0:
             raise RuntimeError("Asl video o'lchamini aniqlab bo'lmadi.")
             
         resolution_str = f"{source_width}x{source_height}"
-        rendition_name = f"original_{source_height}p" # Yagona o'lcham nomi
+        rendition_name = f"original_{source_height}p"
 
         logger.info(f"[RQ Task] Asl video o'lchami: {resolution_str}. Faqat shu o'lchamda konvertatsiya qilinadi.", )
 
@@ -131,7 +140,6 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
         original_rendition = {
             "name": rendition_name,
             "resolution": resolution_str,
-            # Streaming uchun bitrate'ni moslash: Original o'lcham uchun yuqori qiymat berish tavsiya etiladi.
             "bitrate": "8000k", 
             "maxrate": "8560k",
             "bufsize": "12000k",
@@ -147,7 +155,7 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
                 
                 cmd = [
                     "ffmpeg", "-y", "-loglevel", "error",
-                    "-i", input_url,
+                    "-i", str(local_source_path), # 💡 URL o'rniga lokal fayl berildi
                     "-vf", f"scale={r['resolution']}", 
                     "-c:a", "aac", "-ar", "48000",
                     "-c:v", "h264", "-profile:v", "main", "-crf", "20", "-sc_threshold", "0",
@@ -213,5 +221,8 @@ async def _convert_and_upload_async(input_url: str, filename: str, output_prefix
         logger.info(f"[RQ Task] ❌ Xato: {str(e)}")
 
     finally:
+        # 💡 Tozalash: ham temp_dir, ham yuklab olingan original faylni o'chirish
         shutil.rmtree(temp_dir, ignore_errors=True)
-        logger.info("[RQ Task] Vaqtinchalik katalog tozalandi", )   
+        if local_source_path.exists():
+            local_source_path.unlink()
+        logger.info("[RQ Task] Vaqtinchalik katalog va lokal video tozalandi", )

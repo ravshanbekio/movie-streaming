@@ -16,3 +16,6 @@ Port 9181 is in use by another program. Either identify and stop that program, o
 176.65.148.40 - - [14/Dec/2025 01:26:26] code 400, message Bad request version ('À\x13À')
 60.254.111.212 - - [17/Dec/2025 03:56:42] code 400, message Bad request syntax ('SSH-2.0-OpenSSH')
 185.242.226.9 - - [17/Dec/2025 04:27:57] code 400, message Bad request version ('À\x14À')
+91.196.152.118 - - [18/Dec/2025 20:47:10] code 400, message Bad request version ('À#À¬À®À+À')
+85.217.149.10 - - [20/Dec/2025 19:32:40] code 400, message Bad request version ('À\x14À')
+195.3.223.33 - - [21/Dec/2025 09:31:39] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie:')
