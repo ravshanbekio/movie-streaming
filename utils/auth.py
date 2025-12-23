@@ -18,7 +18,7 @@ ACCESS_TOKEN_EXPIRE_DAYS = 365 * 100
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 def get_password_hash(password):
     return pwd_context.hash(password)
@@ -35,7 +35,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-async def get_current_user(db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme)):
+async def get_current_user(db: AsyncSession = Depends(get_db), token: str | None = Depends(oauth2_scheme)):
+    if token is None:
+        return None
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -61,10 +64,11 @@ async def get_current_user(db: AsyncSession = Depends(get_db), token: str = Depe
     return user
 
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)):
-    if current_user.status == "active":
-        return current_user
-    raise HTTPException(status_code=401, detail="Inactive user")
+async def get_current_active_user(current_user: Optional[User] = Depends(get_current_user)):
+    if current_user:
+        if current_user.status == "active":
+            return current_user
+        raise HTTPException(status_code=401, detail="Inactive user")
 
 
 def token_has_expired(token: str) -> bool:
