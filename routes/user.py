@@ -17,7 +17,7 @@ from utils.sms_integration import send_sms
 
 user_router = APIRouter(tags=["User"])
 
-@user_router.post("/user/create", summary="Admin yaratish")
+@user_router.post("/user/create", summary="User yaratish")
 async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) -> UserCreateForm:
     get_user = await get_one(db=db, model=User, filter_query=(User.phone_number==form.phone_number))
     if get_user:
@@ -44,8 +44,8 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
     }   
     user = await create(db=db, model=User, form=data, id=True)
     await create(db=db, model=UserToken, form={"user_id":user, "access_token":access_token, "created_at":datetime.now()})
-    await send_sms(phone_number=form.phone_number, code=code)
-    return ORJSONResponse(status_code=201, content={"token":access_token})
+    #await send_sms(phone_number=form.phone_number, code=code)
+    return ORJSONResponse(status_code=201, content={"token":access_token, "bot_url": "https://t.me/AniDuble_yuklovchibot"})
 
 @user_router.delete("/delete/user", summary="Foydalanuvchini o'chirish")
 async def delete_user(phone_number: str, db: AsyncSession = Depends(get_db)):

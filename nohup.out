@@ -20,3 +20,8 @@ Port 9181 is in use by another program. Either identify and stop that program, o
 85.217.149.10 - - [20/Dec/2025 19:32:40] code 400, message Bad request version ('À\x14À')
 195.3.223.33 - - [21/Dec/2025 09:31:39] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie:')
 93.123.109.126 - - [22/Dec/2025 06:49:16] code 400, message Bad request version ('À\x14À')
+91.231.89.15 - - [24/Dec/2025 08:24:42] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x03\x01§\x01\x00\x01£\x03\x03g`üW\x9f¬Á-\x9cWäZ')
+185.73.124.28 - - [29/Dec/2025 10:15:22] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie:')
+192.159.99.113 - - [30/Dec/2025 04:06:55] code 400, message Bad request version ('À\x13À')
+91.196.152.18 - - [31/Dec/2025 08:16:37] code 400, message Bad request version ('À#À¬À®À+À')
+152.32.139.96 - - [08/Jan/2026 18:55:38] code 400, message Bad request version ('\x00\x9eÌ¨Ìª\x003\x00=\x00\x16À')
