@@ -50,7 +50,7 @@ def deleteUnfinishedOrders():
     
     print("Deleted unfininished orders")
 
-@celery.task(bind=True, max_retries=3)
+@celery.task(max_retries=3)
 def expire_sms_code(user_id, code):
     db = SessionLocal()
 
