@@ -17,6 +17,14 @@ from utils.sms_integration import send_sms
 
 user_router = APIRouter(tags=["User"])
 
+@user_router.get("/user/get_code", summary="Foydalanuvchi kodini tekshirish")
+async def get_user_code(phone_number: str, db: AsyncSession = Depends(get_db)):
+    get_user = await get_one(db=db, model=User, filter_query=(User.phone_number==phone_number))
+    if not get_user:
+        return CustomResponse(status_code=400, detail="Bunday foydalanuvchi mavjud emas")
+    
+    return ORJSONResponse(status_code=200, content={"code": get_user.code})
+
 @user_router.post("/user/create", summary="User yaratish")
 async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) -> UserCreateForm:
     get_user = await get_one(db=db, model=User, filter_query=(User.phone_number==form.phone_number))
