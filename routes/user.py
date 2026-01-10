@@ -14,6 +14,7 @@ from utils.auth import get_password_hash, get_current_active_user
 from utils.exceptions import CustomResponse, UpdatedResponse
 from utils.auth import create_access_token, ACCESS_TOKEN_EXPIRE_DAYS, get_password_hash
 from utils.sms_integration import send_sms
+from utils.celery.tasks import expire_sms_code
 
 user_router = APIRouter(tags=["User"])
 
@@ -35,10 +36,6 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
     
     form.password = get_password_hash(form.password)
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_DAYS)
-    access_token = create_access_token(
-        data={"sub": form.phone_number}, expires_delta=access_token_expires
-    )
     code = random.randint(111111, 999999)
     data = {
         "first_name":form.first_name,
@@ -48,12 +45,16 @@ async def create_user(form: UserCreateForm, db: AsyncSession = Depends(get_db)) 
         "role": form.role,
         "country":form.country,
         "joined_at":datetime.now(),
-        "code": code
-    }   
+        "code": code,
+        "status":"inactive"
+    }
     user = await create(db=db, model=User, form=data, id=True)
-    await create(db=db, model=UserToken, form={"user_id":user, "access_token":access_token, "created_at":datetime.now()})
+    expire_sms_code.apply_async(
+        args=[user, code],
+        countdown=3600
+    )
     #await send_sms(phone_number=form.phone_number, code=code)
-    return ORJSONResponse(status_code=201, content={"token":access_token, "bot_url": "https://t.me/AniDuble_yuklovchibot"})
+    return ORJSONResponse(status_code=201, content={"bot_url": "https://t.me/AniDuble_yuklovchibot"})
 
 @user_router.delete("/delete/user", summary="Foydalanuvchini o'chirish")
 async def delete_user(phone_number: str, db: AsyncSession = Depends(get_db)):
@@ -92,7 +93,15 @@ async def confirm_sms(form: ConfirmSMSForm, db: AsyncSession = Depends(get_db)):
     get_user = await get_one(db=db, model=User, filter_query=(User.phone_number==form.phone_number))
     if get_user.code != int(form.code):
         return False
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_DAYS)
+    access_token = create_access_token(
+        data={"sub": form.phone_number}, expires_delta=access_token_expires
+    )
+
+    await create(db=db, model=UserToken, form={"user_id":get_user.id, "access_token":access_token, "created_at":datetime.now()})
     return {
+        "token": access_token,
         "status":"success",
         "user": {
               "id":get_user.id,

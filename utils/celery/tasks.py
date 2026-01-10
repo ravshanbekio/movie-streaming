@@ -49,3 +49,18 @@ def deleteUnfinishedOrders():
     db.commit()
     
     print("Deleted unfininished orders")
+
+@celery.task(bind=True, max_retries=3)
+def expire_sms_code(user_id, code):
+    db = SessionLocal()
+
+    user = db.query(User).filter(User.id==user_id).first()
+
+    if not user:
+        print("User notfound")
+        return
+    
+    if user.code == code:
+        user.code = None
+        db.commit()
+        print("Phone number updated")
